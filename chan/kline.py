@@ -26,6 +26,7 @@ class MergedCandle:
     dt: str                         # 代表日期（最后一根）
     high: float
     low: float
+    close: float
     direction: int = 0              # 1=上涨方向, -1=下跌方向, 0=初始
 
     @property
@@ -48,6 +49,7 @@ def merge_candles(raw_candles: list[RawCandle]) -> list[MergedCandle]:
             dt=raw.dt,
             high=raw.high,
             low=raw.low,
+            close=raw.close,
         )
         if not merged:
             merged.append(mc)
@@ -77,6 +79,7 @@ def merge_candles(raw_candles: list[RawCandle]) -> list[MergedCandle]:
             merged[-1].high = new_high
             merged[-1].low = new_low
             merged[-1].dt = mc.dt
+            merged[-1].close = mc.close
             merged[-1].raw_indices.extend(mc.raw_indices)
         else:
             # 确定方向

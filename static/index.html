@@ -12,11 +12,13 @@
   .header {
     background: #161b22;
     border-bottom: 1px solid #30363d;
-    padding: 14px 24px;
-    display: flex; align-items: center; gap: 16px;
+    padding: 8px 16px;
+    display: flex; align-items: center; gap: 12px;
   }
-  .header h1 { font-size: 20px; font-weight: 700; color: #58a6ff; }
-  .header span { color: #8b949e; font-size: 13px; }
+  .header h1 { font-size: 16px; font-weight: 700; color: #58a6ff; }
+  .header span { color: #8b949e; font-size: 12px; }
+  .header .tab-bar { margin-left: auto; padding: 0; border: none; }
+  .header .tab-btn { flex: 0; min-width: 92px; }
 
   .layout { display: flex; height: calc(100vh - 57px); }
 
@@ -27,6 +29,22 @@
     border-right: 1px solid #30363d;
     display: flex; flex-direction: column;
     overflow: hidden;
+  }
+  .tab-bar {
+    display: flex; gap: 6px; padding: 10px 12px; border-bottom: 1px solid #21262d;
+  }
+  .tab-btn {
+    flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;
+    border: 1px solid #30363d; background: #0d1117; color: #8b949e;
+    transition: all 0.2s;
+  }
+  .tab-btn.active { background: #21262d; color: #e6edf3; border-color: #58a6ff; }
+  .tab-panel { display: none; flex-direction: column; overflow: hidden; }
+  .tab-panel.active { display: flex; }
+  .input-row { display: flex; gap: 8px; }
+  .input-row input {
+    flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid #30363d;
+    background: #0d1117; color: #e6edf3; font-size: 12px;
   }
   .sidebar-section { padding: 16px; border-bottom: 1px solid #21262d; }
   .sidebar-section h3 { font-size: 13px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
@@ -97,6 +115,17 @@
 
   /* 主图区 */
   .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .chart-toolbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 12px; border-bottom: 1px solid #21262d;
+    background: #0d1117; position: sticky; top: 0; z-index: 5;
+  }
+  .chart-toolbar .toggle-item { padding: 4px 6px; }
+  .trend-badge {
+    margin-left: auto; padding: 4px 10px; border-radius: 6px;
+    font-size: 12px; font-weight: 700; border: 1px solid #30363d;
+    background: rgba(22,27,34,0.9);
+  }
   #chart { flex: 1; }
 
   /* 状态提示 */
@@ -140,58 +169,34 @@
 <div class="header">
   <h1>📈 缠论分析系统</h1>
   <span>Chan Theory · 笔 · 线段 · 中枢 · 三类买卖点</span>
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabData" onclick="switchTab('data')">数据分析</button>
+    <button class="tab-btn" id="tabCrawler" onclick="switchTab('crawler')">数据抓取</button>
+  </div>
 </div>
 
 <div class="layout">
   <!-- 左侧面板 -->
   <div class="sidebar">
 
+    <div class="tab-panel active" id="panelData">
+
     <div class="sidebar-section">
       <h3>数据输入</h3>
-      <label class="upload-area" id="uploadArea">
-        <input type="file" id="fileInput" accept=".csv,.json">
-        <div class="icon">📂</div>
-        <p>点击上传 CSV / JSON 文件</p>
-        <p style="margin-top:4px;font-size:11px">列名：dt, open, high, low, close, volume</p>
-      </label>
-      <button class="btn btn-secondary" onclick="loadSample()">🎲 加载示例数据</button>
+      <div style="margin-top:6px;font-size:12px;color:#8b949e">本地数据</div>
+      <div id="stockFileList" style="margin-top:8px;display:flex;flex-direction:column;gap:6px;max-height:160px;overflow:auto"></div>
     </div>
 
     <div class="sidebar-section">
-      <h3>图层显示</h3>
-      <div class="layer-toggles">
-        <div class="toggle-item">
-          <input type="checkbox" id="showBi" checked onchange="redraw()">
-          <span class="color-dot" style="background:#f7931a"></span>
-          <label for="showBi">笔</label>
-          <span class="badge" id="badge-bi">0</span>
-        </div>
-        <div class="toggle-item">
-          <input type="checkbox" id="showSegment" checked onchange="redraw()">
-          <span class="color-dot" style="background:#a78bfa"></span>
-          <label for="showSegment">线段</label>
-          <span class="badge" id="badge-seg">0</span>
-        </div>
-        <div class="toggle-item">
-          <input type="checkbox" id="showZhongshu" checked onchange="redraw()">
-          <span class="color-dot" style="background:#38bdf8;opacity:0.5"></span>
-          <label for="showZhongshu">中枢</label>
-          <span class="badge" id="badge-zs">0</span>
-        </div>
-        <div class="toggle-item">
-          <input type="checkbox" id="showBuy" checked onchange="redraw()">
-          <span class="color-dot" style="background:#3fb950"></span>
-          <label for="showBuy">买点</label>
-          <span class="badge" id="badge-buy">0</span>
-        </div>
-        <div class="toggle-item">
-          <input type="checkbox" id="showSell" checked onchange="redraw()">
-          <span class="color-dot" style="background:#f85149"></span>
-          <label for="showSell">卖点</label>
-          <span class="badge" id="badge-sell">0</span>
-        </div>
+      <h3>时间范围</h3>
+      <div class="input-row" style="margin-bottom:8px;">
+        <input type="date" id="rangeStart">
+        <input type="date" id="rangeEnd">
       </div>
+      <button class="btn btn-primary" onclick="applyDateRangeAndAnalyze()">✅ 确认并分析</button>
+      <div style="margin-top:8px;font-size:11px;color:#8b949e" id="rangeHint">默认最近6个月</div>
     </div>
+
 
     <div class="sidebar-section">
       <h3>统计概览</h3>
@@ -203,16 +208,93 @@
       </div>
     </div>
 
+    <div class="sidebar-section">
+      <h3>趋势过滤</h3>
+      <div style="font-size:12px;color:#8b949e;line-height:1.6" id="trendSummary">-</div>
+      <div style="margin-top:8px;font-size:12px;color:#8b949e;line-height:1.6" id="trendDetail">-</div>
+      <div class="toggle-item" style="margin-top:10px">
+        <input type="checkbox" id="useFiltered" checked onchange="redraw();renderSignalList();">
+        <span class="color-dot" style="background:#58a6ff"></span>
+        <label for="useFiltered">只显示过滤信号</label>
+        <span class="badge" id="badge-filtered">0</span>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:#8b949e" id="filterHint">-</div>
+    </div>
+
     <div class="signals-list" id="signalsList">
       <div style="color:#8b949e;font-size:13px;text-align:center;padding:20px;">
         请先加载股票数据
       </div>
     </div>
 
+    </div>
+
+    <div class="tab-panel" id="panelCrawler">
+
+      <div class="sidebar-section">
+        <h3>抓取近一年</h3>
+        <div style="font-size:12px;color:#8b949e;line-height:1.6;margin-bottom:8px;">
+          数据源：东方财富日线（默认前复权）
+        </div>
+        <div class="input-row" style="margin-bottom:8px;">
+          <input type="text" id="crawlCode" placeholder="股票代码，如 002594 或 sz002594">
+          <button class="btn btn-primary" style="width:auto" onclick="crawlData()">抓取</button>
+        </div>
+        <div class="input-row" style="margin-bottom:8px;">
+          <select id="crawlFqt" style="flex:1;padding:8px 10px;border-radius:6px;border:1px solid #30363d;background:#0d1117;color:#e6edf3;font-size:12px;">
+            <option value="0" selected>不复权 (fqt=0)</option>
+            <option value="1">前复权 (fqt=1)</option>
+            <option value="2">后复权 (fqt=2)</option>
+          </select>
+        </div>
+        <div style="font-size:11px;color:#8b949e;line-height:1.6" id="crawlHint">-</div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>抓取结果</h3>
+        <div style="font-size:12px;color:#8b949e;line-height:1.6" id="crawlResult">-</div>
+        <button class="btn btn-secondary" id="crawlUse" style="margin-top:10px;display:none" onclick="useCrawlData()">直接分析这份数据</button>
+      </div>
+
+    </div>
+
   </div>
 
   <!-- 主图 -->
   <div class="main-area" style="position:relative">
+    <div class="chart-toolbar">
+      <div class="toggle-item">
+        <input type="checkbox" id="showBi" checked onchange="redraw()">
+        <span class="color-dot" style="background:#f7931a"></span>
+        <label for="showBi">笔</label>
+        <span class="badge" id="badge-bi">0</span>
+      </div>
+      <div class="toggle-item">
+        <input type="checkbox" id="showSegment" checked onchange="redraw()">
+        <span class="color-dot" style="background:#a78bfa"></span>
+        <label for="showSegment">线段</label>
+        <span class="badge" id="badge-seg">0</span>
+      </div>
+      <div class="toggle-item">
+        <input type="checkbox" id="showZhongshu" checked onchange="redraw()">
+        <span class="color-dot" style="background:#38bdf8;opacity:0.5"></span>
+        <label for="showZhongshu">中枢</label>
+        <span class="badge" id="badge-zs">0</span>
+      </div>
+      <div class="toggle-item">
+        <input type="checkbox" id="showBuy" checked onchange="redraw()">
+        <span class="color-dot" style="background:#3fb950"></span>
+        <label for="showBuy">买点</label>
+        <span class="badge" id="badge-buy">0</span>
+      </div>
+      <div class="toggle-item">
+        <input type="checkbox" id="showSell" checked onchange="redraw()">
+        <span class="color-dot" style="background:#f85149"></span>
+        <label for="showSell">卖点</label>
+        <span class="badge" id="badge-sell">0</span>
+      </div>
+      <div class="trend-badge" id="trendBadge">趋势: -</div>
+    </div>
     <div id="chart"></div>
     <div class="loading-overlay" id="loading">
       <div class="spinner"></div>
@@ -235,6 +317,8 @@
 <script>
 let chart = null;
 let analysisData = null;
+let lastCrawlData = null;
+let lastLoadedData = null;
 
 // 初始化ECharts
 function initChart() {
@@ -244,13 +328,35 @@ function initChart() {
 }
 
 // 加载示例数据
-async function loadSample() {
+async function loadLocalFileList() {
+  const container = document.getElementById('stockFileList');
+  container.innerHTML = '<div style="color:#8b949e;font-size:12px">加载中...</div>';
+  try {
+    const resp = await fetch('/api/stock_files');
+    const json = await resp.json();
+    const files = json.files || [];
+    if (files.length === 0) {
+      container.innerHTML = '<div style="color:#8b949e;font-size:12px">暂无本地文件</div>';
+      return;
+    }
+    container.innerHTML = files.map(f => (
+      `<button class="btn btn-secondary" style="text-align:left" onclick="loadLocalFile('${f.file}')">${f.code}</button>`
+    )).join('');
+  } catch (e) {
+    container.innerHTML = `<div style="color:#f85149;font-size:12px">加载失败: ${e.message}</div>`;
+  }
+}
+
+async function loadLocalFile(file) {
   showLoading(true);
   try {
-    const resp = await fetch('/api/sample');
+    const resp = await fetch(`/api/stock_data?file=${encodeURIComponent(file)}`);
     const json = await resp.json();
-    await runAnalysis(json.data);
-  } catch(e) {
+    if (!json.success) throw new Error(json.error);
+    lastLoadedData = json.data || [];
+    setDateRangeDefaults(lastLoadedData);
+    await applyDateRangeAndAnalyze();
+  } catch (e) {
     setStatus('error', '加载失败: ' + e.message);
   } finally {
     showLoading(false);
@@ -258,31 +364,6 @@ async function loadSample() {
 }
 
 // 上传文件
-document.getElementById('fileInput').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  showLoading(true);
-  try {
-    if (file.name.endsWith('.csv')) {
-      const form = new FormData();
-      form.append('file', file);
-      const resp = await fetch('/api/analyze', { method: 'POST', body: form });
-      const json = await resp.json();
-      if (!json.success) throw new Error(json.error);
-      handleResult(json);
-    } else {
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-      const data = Array.isArray(parsed) ? parsed : parsed.data;
-      await runAnalysis(data);
-    }
-  } catch(e) {
-    setStatus('error', '文件解析失败: ' + e.message);
-    alert('错误: ' + e.message);
-  } finally {
-    showLoading(false);
-  }
-});
 
 async function runAnalysis(data) {
   const resp = await fetch('/api/analyze', {
@@ -298,6 +379,10 @@ async function runAnalysis(data) {
 function handleResult(json) {
   analysisData = json.data;
   const s = json.summary;
+  const bias = analysisData.trade_bias || { direction: 'side', source_level: 'base' };
+  const trendMeta = analysisData.trend_meta || {};
+  const filteredBuy = analysisData.filtered_buy_points || [];
+  const filteredSell = analysisData.filtered_sell_points || [];
   
   // 更新统计
   document.getElementById('stat-candles').textContent = s.total_candles;
@@ -309,6 +394,22 @@ function handleResult(json) {
   document.getElementById('badge-zs').textContent = s.zhongshus_count;
   document.getElementById('badge-buy').textContent = s.buy_points_count;
   document.getElementById('badge-sell').textContent = s.sell_points_count;
+  document.getElementById('badge-filtered').textContent = filteredBuy.length + filteredSell.length;
+
+  const dirText = bias.direction === 'up' ? '上行' : bias.direction === 'down' ? '下行' : '震荡';
+  document.getElementById('trendSummary').textContent = `上级别趋势：${dirText}（来源 ${bias.source_level}）`;
+  const zsText = trendMeta.zhongshu_zg && trendMeta.zhongshu_zd
+    ? `中枢区间 [${trendMeta.zhongshu_zd.toFixed(2)}, ${trendMeta.zhongshu_zg.toFixed(2)}]`
+    : '中枢区间：-';
+  const lastPriceText = trendMeta.last_price != null ? `最新价 ${trendMeta.last_price.toFixed(2)}` : '最新价：-';
+  const ruleText = trendMeta.rule ? `规则 ${trendMeta.rule}` : '规则：-';
+  document.getElementById('trendDetail').textContent = `${zsText}，${lastPriceText}，${ruleText}`;
+  document.getElementById('filterHint').textContent = `过滤后信号：买${filteredBuy.length} / 卖${filteredSell.length}`;
+  const badge = document.getElementById('trendBadge');
+  const badgeColor = bias.direction === 'up' ? '#3fb950' : bias.direction === 'down' ? '#f85149' : '#8b949e';
+  badge.textContent = `趋势: ${dirText}`;
+  badge.style.borderColor = badgeColor;
+  badge.style.color = badgeColor;
 
   setStatus('ok', `分析完成：${s.total_candles}根K线，${s.bis_count}笔，${s.zhongshus_count}个中枢，${s.buy_points_count}个买点`);
   
@@ -326,12 +427,43 @@ function buildChartOption(d) {
   const dates = d.raw_candles.map(c => c.dt);
   const candleData = d.raw_candles.map(c => [c.open, c.close, c.low, c.high]);
   const volumes = d.raw_candles.map(c => c.volume || 0);
+  const useFiltered = document.getElementById('useFiltered').checked;
+  const buyList = useFiltered ? (d.filtered_buy_points || []) : d.buy_points;
+  const sellList = useFiltered ? (d.filtered_sell_points || []) : d.sell_points;
+  const trendDir = d.trade_bias?.direction || d.trend || 'side';
+  const trendText = trendDir === 'up' ? '趋势: 上行 ▲' : trendDir === 'down' ? '趋势: 下行 ▼' : '趋势: 震荡 •';
+  const trendColor = trendDir === 'up' ? '#3fb950' : trendDir === 'down' ? '#f85149' : '#8b949e';
+  const trendBand = trendDir === 'up'
+    ? 'rgba(63,185,80,0.08)'
+    : trendDir === 'down'
+      ? 'rgba(248,81,73,0.08)'
+      : 'rgba(139,148,158,0.06)';
 
   // 颜色
   const upColor = '#26a69a', downColor = '#ef5350';
 
   // ===== 系列 =====
   const series = [];
+
+  // 趋势背景带
+  if (dates.length > 1) {
+    series.push({
+      name: '趋势带',
+      type: 'line',
+      xAxisIndex: 0,
+      yAxisIndex: 0,
+      data: [],
+      silent: true,
+      z: 1,
+      markArea: {
+        itemStyle: { color: trendBand },
+        data: [[
+          { xAxis: dates[0], yAxis: 'min' },
+          { xAxis: dates[dates.length - 1], yAxis: 'max' }
+        ]]
+      }
+    });
+  }
 
   // 1. K线
   series.push({
@@ -423,7 +555,7 @@ function buildChartOption(d) {
   // 6. 买点标记
   const buyMarkPoints = [];
   if (document.getElementById('showBuy').checked) {
-    d.buy_points.forEach(bp => {
+    buyList.forEach(bp => {
       buyMarkPoints.push({
         name: `B${bp.btype}`,
         coord: [bp.dt, bp.price],
@@ -444,7 +576,7 @@ function buildChartOption(d) {
   // 7. 卖点标记
   const sellMarkPoints = [];
   if (document.getElementById('showSell').checked) {
-    d.sell_points.forEach(sp => {
+    sellList.forEach(sp => {
       sellMarkPoints.push({
         name: `S${sp.btype}`,
         coord: [sp.dt, sp.price],
@@ -524,16 +656,24 @@ function buildChartOption(d) {
 function tooltipFormatter(params) {
   const kParam = params.find(p => p.seriesName === 'K线');
   if (!kParam) return '';
-  const [open, close, low, high] = kParam.data;
+  const dt = kParam.axisValue;
+  const useFiltered = document.getElementById('useFiltered').checked;
+  const buyList = useFiltered ? (analysisData.filtered_buy_points || []) : analysisData.buy_points;
+  const sellList = useFiltered ? (analysisData.filtered_sell_points || []) : analysisData.sell_points;
+
+  const raw = analysisData?.raw_candles?.find(c => c.dt === dt);
+  const open = raw ? raw.open : kParam.data[0];
+  const close = raw ? raw.close : kParam.data[1];
+  const low = raw ? raw.low : kParam.data[2];
+  const high = raw ? raw.high : kParam.data[3];
   const chg = ((close - open) / open * 100).toFixed(2);
   const color = close >= open ? '#26a69a' : '#ef5350';
-  const dt = kParam.axisValue;
 
   // 检查是否有买卖点
   let signalHtml = '';
   if (analysisData) {
-    const bp = analysisData.buy_points.find(p => p.dt === dt);
-    const sp = analysisData.sell_points.find(p => p.dt === dt);
+    const bp = buyList.find(p => p.dt === dt);
+    const sp = sellList.find(p => p.dt === dt);
     if (bp) signalHtml += `<div style="color:#3fb950;margin-top:6px">▲ 第${bp.btype}类买点</div>`;
     if (sp) signalHtml += `<div style="color:#f85149;margin-top:4px">▼ 第${sp.btype}类卖点</div>`;
   }
@@ -554,11 +694,19 @@ function onChartClick(params) {
   if (!analysisData) return;
   const dt = params.data?.coord?.[0] || params.value?.[0] || null;
   if (!dt) return;
+  const useFiltered = document.getElementById('useFiltered').checked;
+  const buyList = useFiltered ? (analysisData.filtered_buy_points || []) : analysisData.buy_points;
+  const sellList = useFiltered ? (analysisData.filtered_sell_points || []) : analysisData.sell_points;
 
-  const bp = analysisData.buy_points.find(p => p.dt === dt);
-  const sp = analysisData.sell_points.find(p => p.dt === dt);
-  if (bp) showTooltipPanel(`第${bp.btype}类买点 · ${bp.dt}`, bp.reason, params.event?.event);
-  else if (sp) showTooltipPanel(`第${sp.btype}类卖点 · ${sp.dt}`, sp.reason, params.event?.event);
+  const bp = buyList.find(p => p.dt === dt);
+  const sp = sellList.find(p => p.dt === dt);
+  if (bp) {
+    const src = bp.source ? `\n\n来源规则：${bp.source}` : '';
+    showTooltipPanel(`第${bp.btype}类买点 · ${bp.dt}`, `${bp.reason}${src}`, params.event?.event);
+  } else if (sp) {
+    const src = sp.source ? `\n\n来源规则：${sp.source}` : '';
+    showTooltipPanel(`第${sp.btype}类卖点 · ${sp.dt}`, `${sp.reason}${src}`, params.event?.event);
+  }
 }
 
 function showTooltipPanel(title, content, evt) {
@@ -586,9 +734,12 @@ function closeTooltip() {
 function renderSignalList() {
   if (!analysisData) return;
   const container = document.getElementById('signalsList');
+  const useFiltered = document.getElementById('useFiltered').checked;
+  const buyList = useFiltered ? (analysisData.filtered_buy_points || []) : analysisData.buy_points;
+  const sellList = useFiltered ? (analysisData.filtered_sell_points || []) : analysisData.sell_points;
   const allSignals = [
-    ...analysisData.buy_points.map(p => ({ ...p, side: 'buy' })),
-    ...analysisData.sell_points.map(p => ({ ...p, side: 'sell' })),
+    ...buyList.map(p => ({ ...p, side: 'buy' })),
+    ...sellList.map(p => ({ ...p, side: 'sell' })),
   ].sort((a, b) => a.dt.localeCompare(b.dt));
 
   if (allSignals.length === 0) {
@@ -639,11 +790,15 @@ function onSignalClick(dt, side) {
   });
 
   // 显示详情
+  const useFiltered = document.getElementById('useFiltered').checked;
+  const buyList = useFiltered ? (analysisData.filtered_buy_points || []) : analysisData.buy_points;
+  const sellList = useFiltered ? (analysisData.filtered_sell_points || []) : analysisData.sell_points;
   const signal = side === 'buy'
-    ? analysisData.buy_points.find(p => p.dt === dt)
-    : analysisData.sell_points.find(p => p.dt === dt);
+    ? buyList.find(p => p.dt === dt)
+    : sellList.find(p => p.dt === dt);
   if (signal) {
-    showTooltipPanel(`第${signal.btype}类${side === 'buy' ? '买' : '卖'}点 · ${signal.dt}`, signal.reason);
+    const src = signal.source ? `\n\n来源规则：${signal.source}` : '';
+    showTooltipPanel(`第${signal.btype}类${side === 'buy' ? '买' : '卖'}点 · ${signal.dt}`, `${signal.reason}${src}`);
     document.getElementById('tooltipPanel').style.left = '50%';
     document.getElementById('tooltipPanel').style.top = '30%';
     document.getElementById('tooltipPanel').style.transform = 'translate(-50%,0)';
@@ -660,6 +815,99 @@ function setStatus(type, text) {
   document.getElementById('statusText').textContent = text;
 }
 
+function switchTab(tab) {
+  document.getElementById('tabData').classList.toggle('active', tab === 'data');
+  document.getElementById('tabCrawler').classList.toggle('active', tab === 'crawler');
+  document.getElementById('panelData').classList.toggle('active', tab === 'data');
+  document.getElementById('panelCrawler').classList.toggle('active', tab === 'crawler');
+}
+
+async function crawlData() {
+  const code = document.getElementById('crawlCode').value.trim();
+  const fqt = document.getElementById('crawlFqt').value;
+  if (!code) {
+    document.getElementById('crawlHint').textContent = '请输入股票代码';
+    return;
+  }
+  showLoading(true);
+  document.getElementById('crawlHint').textContent = '抓取中...';
+  document.getElementById('crawlResult').textContent = '-';
+  document.getElementById('crawlUse').style.display = 'none';
+  try {
+    const resp = await fetch('/api/crawl', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, fqt }),
+    });
+    const json = await resp.json();
+    if (!json.success) throw new Error(json.error);
+    lastCrawlData = json.data || [];
+    document.getElementById('crawlHint').textContent = '抓取完成';
+    const fqtLabel = json.fqt === '1' ? '前复权' : json.fqt === '2' ? '后复权' : '不复权';
+    document.getElementById('crawlResult').textContent = `保存：${json.file}，条数：${json.count}，${fqtLabel}`;
+    document.getElementById('crawlUse').style.display = 'inline-block';
+  } catch (e) {
+    document.getElementById('crawlHint').textContent = `抓取失败：${e.message}`;
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function useCrawlData() {
+  if (!lastCrawlData || lastCrawlData.length === 0) return;
+  switchTab('data');
+  lastLoadedData = lastCrawlData;
+  setDateRangeDefaults(lastLoadedData);
+  await applyDateRangeAndAnalyze();
+}
+
+function setDateRangeDefaults(data) {
+  if (!data || data.length === 0) return;
+  const maxDt = data[data.length - 1]?.dt;
+  const maxDate = new Date(maxDt);
+  if (Number.isNaN(maxDate.getTime())) return;
+  const end = maxDate;
+  const start = new Date(end);
+  start.setMonth(start.getMonth() - 6);
+  document.getElementById('rangeStart').value = toDateInputValue(start);
+  document.getElementById('rangeEnd').value = toDateInputValue(end);
+  document.getElementById('rangeHint').textContent = '默认最近6个月';
+}
+
+function toDateInputValue(d) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function filterByDate(data, start, end) {
+  const s = new Date(start);
+  const e = new Date(end);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return data;
+  return data.filter(r => {
+    const d = new Date(r.dt);
+    return d >= s && d <= e;
+  });
+}
+
+async function applyDateRangeAndAnalyze() {
+  if (!lastLoadedData || lastLoadedData.length === 0) {
+    setStatus('error', '请先加载数据');
+    return;
+  }
+  const start = document.getElementById('rangeStart').value;
+  const end = document.getElementById('rangeEnd').value;
+  const filtered = filterByDate(lastLoadedData, start, end);
+  if (!filtered || filtered.length < 10) {
+    setStatus('error', '选定时间范围内数据不足（至少10根K线）');
+    return;
+  }
+  document.getElementById('rangeHint').textContent = `当前范围：${start} 至 ${end}，共 ${filtered.length} 根K线`;
+  await runAnalysis(filtered);
+}
+
+
 // 点击空白关闭弹窗
 document.addEventListener('click', (e) => {
   if (!document.getElementById('tooltipPanel').contains(e.target) && !e.target.closest('.signal-card')) {
@@ -668,6 +916,7 @@ document.addEventListener('click', (e) => {
 });
 
 initChart();
+loadLocalFileList();
 </script>
 </body>
 </html>

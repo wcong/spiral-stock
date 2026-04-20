@@ -112,3 +112,47 @@ def detect_pan_beichi(bis: list[Bi], zhongshus: list[ZhongShu]) -> list[BeiChi]:
             ))
 
     return results
+
+
+def detect_simple_beichi(bis: list[Bi]) -> list[BeiChi]:
+    """
+    简易背驰：同向两笔创新高/新低，但后一笔力度明显减弱
+    """
+    results = []
+    if len(bis) < 2:
+        return results
+
+    for i in range(1, len(bis)):
+        cur = bis[i]
+        # 找上一个同方向的笔
+        prev = None
+        for j in range(i - 1, -1, -1):
+            if bis[j].direction == cur.direction:
+                prev = bis[j]
+                break
+        if not prev:
+            continue
+
+        if cur.direction == 'down':
+            made_new = cur.end_price < prev.end_price
+        else:
+            made_new = cur.end_price > prev.end_price
+
+        if not made_new or prev.amplitude <= 0:
+            continue
+
+        if cur.amplitude < prev.amplitude * 0.95:
+            strength = 1.0 - cur.amplitude / (prev.amplitude + 1e-9)
+            desc = (
+                f"简易背驰（{cur.direction}）：前段力度={prev.amplitude:.2f}，"
+                f"后段力度={cur.amplitude:.2f}，背驰强度={strength:.1%}"
+            )
+            results.append(BeiChi(
+                bi_index=cur.index,
+                btype='simple',
+                direction=cur.direction,
+                strength=strength,
+                desc=desc,
+            ))
+
+    return results

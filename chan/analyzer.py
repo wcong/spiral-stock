@@ -23,6 +23,70 @@ class ChanResult:
     sell_points: list[SellPoint]
 
 
+def infer_trend(result: "ChanResult") -> str:
+    """根据线段/中枢一致性推断当前趋势方向"""
+    return _infer_trend_with_meta(result)[0]
+
+
+def infer_trend_meta(result: "ChanResult") -> dict:
+    """输出趋势判断的依据，便于调试与解释"""
+    return _infer_trend_with_meta(result)[1]
+
+
+def _infer_trend_with_meta(result: "ChanResult") -> tuple[str, dict]:
+    segment_dir = result.segments[-1].direction if result.segments else None
+    last_zs = result.zhongshus[-1] if result.zhongshus else None
+    zhongshu_dir = last_zs.direction if last_zs else None
+
+    if result.raw_candles:
+        last_price = result.raw_candles[-1].close
+    elif result.bis:
+        last_price = result.bis[-1].end_price
+    else:
+        last_price = None
+
+    meta = {
+        'rule': 'segment_zhongshu_consistency',
+        'segment_direction': segment_dir,
+        'zhongshu_direction': zhongshu_dir,
+        'last_price': last_price,
+        'zhongshu_zg': last_zs.zg if last_zs else None,
+        'zhongshu_zd': last_zs.zd if last_zs else None,
+        'resolved': None,
+    }
+
+    if not segment_dir and not zhongshu_dir:
+        if result.bis:
+            meta['rule'] = 'fallback_bi'
+            meta['resolved'] = result.bis[-1].direction
+            return result.bis[-1].direction, meta
+        meta['rule'] = 'no_structure'
+        meta['resolved'] = 'side'
+        return 'side', meta
+
+    if zhongshu_dir:
+        if segment_dir and segment_dir != zhongshu_dir:
+            meta['rule'] = 'segment_zhongshu_conflict'
+            meta['resolved'] = 'side'
+            return 'side', meta
+
+        if last_price is not None and last_zs:
+            if zhongshu_dir == 'up' and last_price > last_zs.zg:
+                meta['resolved'] = 'up'
+                return 'up', meta
+            if zhongshu_dir == 'down' and last_price < last_zs.zd:
+                meta['resolved'] = 'down'
+                return 'down', meta
+
+        meta['rule'] = 'zhongshu_no_breakout'
+        meta['resolved'] = 'side'
+        return 'side', meta
+
+    meta['rule'] = 'segment_only'
+    meta['resolved'] = segment_dir or 'side'
+    return segment_dir or 'side', meta
+
+
 def analyze(df: pd.DataFrame) -> ChanResult:
     """
     主分析函数
@@ -76,9 +140,44 @@ def analyze(df: pd.DataFrame) -> ChanResult:
     )
 
 
+def analyze_multi_level(
+    df: pd.DataFrame,
+    levels: Optional[list[str]] = None,
+) -> tuple[ChanResult, dict[str, ChanResult], list[str]]:
+    """
+    多级别分析：在基础级别上，自动聚合到更高周期并分析
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        原始K线数据
+    levels : list[str]
+        目标级别，如 ['30min', '60min', '1D']
+    """
+    base_result = analyze(df)
+    warnings: list[str] = []
+    levels = levels or []
+
+    norm_df = _normalize_df(df)
+    if norm_df.empty:
+        return base_result, {}, ["时间字段无法解析，跳过多级别聚合"]
+
+    results: dict[str, ChanResult] = {}
+    for rule in levels:
+        agg = _aggregate_ohlcv(norm_df, rule)
+        if agg is None or len(agg) < 10:
+            warnings.append(f"级别 {rule} 数据不足或无法聚合，已跳过")
+            continue
+        results[rule] = analyze(agg)
+
+    return base_result, results, warnings
+
+
 def result_to_dict(result: ChanResult) -> dict:
     """将结果序列化为可JSON化的字典"""
     return {
+        "trend": infer_trend(result),
+        "trend_meta": infer_trend_meta(result),
         "candles": [
             {
                 "dt": c.dt,
@@ -152,6 +251,7 @@ def result_to_dict(result: ChanResult) -> dict:
                 "dt": bp.dt,
                 "price": bp.price,
                 "reason": bp.reason,
+                "source": getattr(bp, 'source', None),
                 "beichi_strength": bp.beichi.strength if bp.beichi else None,
                 "beichi_type": bp.beichi.btype if bp.beichi else None,
             }
@@ -163,7 +263,43 @@ def result_to_dict(result: ChanResult) -> dict:
                 "dt": sp.dt,
                 "price": sp.price,
                 "reason": sp.reason,
+                "source": getattr(sp, 'source', None),
             }
             for sp in result.sell_points
         ],
     }
+
+
+def _normalize_df(df: pd.DataFrame) -> pd.DataFrame:
+    """标准化时间序列，便于聚合"""
+    tmp = df.copy()
+    if 'dt' not in tmp.columns:
+        return pd.DataFrame()
+    tmp['dt'] = pd.to_datetime(tmp['dt'], errors='coerce')
+    tmp = tmp.dropna(subset=['dt']).sort_values('dt')
+    tmp = tmp.drop_duplicates(subset=['dt'])
+    return tmp
+
+
+def _aggregate_ohlcv(df: pd.DataFrame, rule: str) -> Optional[pd.DataFrame]:
+    """按指定频率聚合OHLCV"""
+    if df.empty:
+        return None
+    tmp = df.set_index('dt')
+
+    required = {'open', 'high', 'low', 'close'}
+    if not required.issubset(set(tmp.columns)):
+        return None
+
+    ohlc = tmp.resample(rule).agg({
+        'open': 'first',
+        'high': 'max',
+        'low': 'min',
+        'close': 'last',
+    })
+    if 'volume' in tmp.columns:
+        ohlc['volume'] = tmp['volume'].resample(rule).sum()
+    ohlc = ohlc.dropna(subset=['open', 'high', 'low', 'close'])
+    ohlc = ohlc.reset_index()
+    ohlc['dt'] = ohlc['dt'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    return ohlc
