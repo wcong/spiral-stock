@@ -112,6 +112,11 @@ def api_analyze():
         }
         data['filtered_buy_points'] = filtered_buy
         data['filtered_sell_points'] = filtered_sell
+        if isinstance(data.get('diagnostics'), dict):
+            data['diagnostics']['filtered_buy_points'] = len(filtered_buy)
+            data['diagnostics']['filtered_sell_points'] = len(filtered_sell)
+
+        data['forecast'] = _compute_forecast(data)
 
         return jsonify({
             'success': True,
@@ -131,6 +136,65 @@ def api_analyze():
     except Exception as e:
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+def _compute_forecast(data: dict) -> list[dict]:
+    """基于当前结构给出3/5/10天趋势倾向（概率性）"""
+    horizons = [3, 5, 10]
+    raw = data.get('raw_candles', [])
+    if not raw:
+        return []
+
+    dt_to_idx = {c['dt']: i for i, c in enumerate(raw)}
+    last_idx = len(raw) - 1
+
+    buys = data.get('filtered_buy_points') or data.get('buy_points') or []
+    sells = data.get('filtered_sell_points') or data.get('sell_points') or []
+
+    last_buy_idx = max((dt_to_idx.get(p['dt'], -1) for p in buys), default=-1)
+    last_sell_idx = max((dt_to_idx.get(p['dt'], -1) for p in sells), default=-1)
+
+    trend = data.get('trade_bias', {}).get('direction') or data.get('trend', 'side')
+
+    forecasts = []
+    for h in horizons:
+        base_conf = 0.5
+        direction = 'side'
+        reason_parts = []
+
+        if trend in {'up', 'down'}:
+            direction = trend
+            base_conf += 0.15
+            reason_parts.append(f"趋势偏{('上' if trend == 'up' else '下')}")
+
+        if last_buy_idx >= 0 and last_idx - last_buy_idx <= 5:
+            if direction != 'down':
+                direction = 'up'
+                base_conf += 0.2
+                reason_parts.append("近期买点触发")
+
+        if last_sell_idx >= 0 and last_idx - last_sell_idx <= 5:
+            if direction != 'up':
+                direction = 'down'
+                base_conf += 0.2
+                reason_parts.append("近期卖点触发")
+
+        if direction == 'side':
+            base_conf -= 0.1
+            reason_parts.append("结构偏震荡")
+
+        base_conf = max(0.1, min(0.9, base_conf))
+        if not reason_parts:
+            reason_parts = ["结构信号不足"]
+
+        forecasts.append({
+            'horizon_days': h,
+            'direction': direction,
+            'confidence': round(base_conf, 2),
+            'reason': '，'.join(reason_parts),
+        })
+
+    return forecasts
 
 
 @app.route('/api/sample', methods=['GET'])

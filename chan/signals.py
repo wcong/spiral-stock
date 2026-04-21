@@ -132,6 +132,18 @@ def find_buy_sell_points(
                     beichi=None, reason=reason, source='b2_trend_pullback',
                 ))
 
+    # ---- 第二类卖点（结构兜底，不依赖趋势过滤） ----
+    for i in range(2, len(bis)):
+        b0, b1, b2 = bis[i - 2], bis[i - 1], bis[i]
+        if b0.direction == 'down' and b1.direction == 'up' and b2.direction == 'down':
+            if b1.end_price <= b0.start_price * 1.03:
+                reason = _build_b2_structure_sell_reason(b0, b1, b2)
+                sell_points.append(SellPoint(
+                    btype=2, bi=b2, zhongshu=_find_related_zhongshu(b2, zhongshus),
+                    dt=b2.start_dt, price=b2.start_price,
+                    beichi=None, reason=reason, source='b2_structure',
+                ))
+
     # ---- 第三类买卖点 ----
     # 中枢结束后，新趋势回调不进入中枢
     for i, zs in enumerate(zhongshus):
@@ -161,12 +173,12 @@ def find_buy_sell_points(
 
         # 下降方向：中枢后向下跌破，反弹不进入中枢 → 第三卖点
         if exit_bi.direction == 'down' and exit_bi.end_price < zs.zd:
-            if pullback_bi.direction == 'up' and pullback_bi.end_price < zs.zd:
+            if pullback_bi.direction == 'up' and pullback_bi.end_price <= zs.zd * 1.01:
                 reason = _build_b3_sell_reason(zs, exit_bi, pullback_bi)
                 sell_points.append(SellPoint(
                     btype=3, bi=pullback_bi, zhongshu=zs,
                     dt=pullback_bi.end_dt, price=pullback_bi.end_price,
-                    beichi=None, reason=reason, source='b3_zhongshu_break',
+                    beichi=None, reason=reason, source='b3_zhongshu_break_relaxed',
                 ))
 
     # 去重并排序
@@ -275,6 +287,18 @@ def _build_b2_trend_sell_reason(b0: Bi, b1: Bi, b2: Bi, trend_dir: str) -> str:
         f"🔍 识别依据：\n"
         f"  • 结构为下-上-下，反弹笔高点 {b1.end_price:.2f} 未破起跌高点 {b0.start_price:.2f}\n"
         f"  • 当前趋势判断为{trend_txt}，允许趋势延续型离场\n"
+        f"💡 操作建议：\n"
+        f"  • 轻仓离场，止损设在 {b0.start_price:.2f} 上方"
+    )
+
+
+def _build_b2_structure_sell_reason(b0: Bi, b1: Bi, b2: Bi) -> str:
+    return (
+        f"【第二类卖点】\n"
+        f"📍 位置：{b2.start_dt}，价格 {b2.start_price:.2f}\n"
+        f"🔍 识别依据：\n"
+        f"  • 结构为下-上-下，反弹笔高点 {b1.end_price:.2f} 未破起跌高点 {b0.start_price:.2f}\n"
+        f"  • 结构型卖点（不依赖趋势过滤）\n"
         f"💡 操作建议：\n"
         f"  • 轻仓离场，止损设在 {b0.start_price:.2f} 上方"
     )

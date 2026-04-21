@@ -221,6 +221,18 @@
       <div style="margin-top:8px;font-size:11px;color:#8b949e" id="filterHint">-</div>
     </div>
 
+    <div class="sidebar-section">
+      <h3>结构诊断</h3>
+      <div style="font-size:12px;color:#8b949e;line-height:1.6" id="diagSummary">-</div>
+      <div style="margin-top:6px;font-size:11px;color:#8b949e;line-height:1.6" id="diagDetail">-</div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>趋势预测</h3>
+      <div style="font-size:12px;color:#8b949e;line-height:1.6" id="forecastList">-</div>
+      <div style="margin-top:6px;font-size:11px;color:#8b949e;line-height:1.6">仅为概率评估，非确定预测</div>
+    </div>
+
     <div class="signals-list" id="signalsList">
       <div style="color:#8b949e;font-size:13px;text-align:center;padding:20px;">
         请先加载股票数据
@@ -381,8 +393,10 @@ function handleResult(json) {
   const s = json.summary;
   const bias = analysisData.trade_bias || { direction: 'side', source_level: 'base' };
   const trendMeta = analysisData.trend_meta || {};
+  const diag = analysisData.diagnostics || {};
   const filteredBuy = analysisData.filtered_buy_points || [];
   const filteredSell = analysisData.filtered_sell_points || [];
+  const forecast = analysisData.forecast || [];
   
   // 更新统计
   document.getElementById('stat-candles').textContent = s.total_candles;
@@ -405,6 +419,21 @@ function handleResult(json) {
   const ruleText = trendMeta.rule ? `规则 ${trendMeta.rule}` : '规则：-';
   document.getElementById('trendDetail').textContent = `${zsText}，${lastPriceText}，${ruleText}`;
   document.getElementById('filterHint').textContent = `过滤后信号：买${filteredBuy.length} / 卖${filteredSell.length}`;
+  const diagLine = `笔${diag.bis || 0} / 线段${diag.segments || 0} / 中枢${diag.zhongshus || 0}`;
+  const beichiLine = `背驰：趋势${diag.beichi_trend || 0} / 盘整${diag.beichi_pan || 0} / 简易${diag.beichi_simple || 0}`;
+  const signalLine = `信号：买${diag.buy_points || 0} / 卖${diag.sell_points || 0} · 过滤后 买${diag.filtered_buy_points || 0} / 卖${diag.filtered_sell_points || 0}`;
+  document.getElementById('diagSummary').textContent = diagLine;
+  document.getElementById('diagDetail').textContent = `${beichiLine}，${signalLine}`;
+
+  if (forecast.length === 0) {
+    document.getElementById('forecastList').textContent = '暂无预测';
+  } else {
+    const fmtDir = d => d === 'up' ? '看多' : d === 'down' ? '看空' : '震荡';
+    const rows = forecast.map(f => (
+      `未来${f.horizon_days}天：${fmtDir(f.direction)}，置信度${Math.round(f.confidence * 100)}%，${f.reason}`
+    ));
+    document.getElementById('forecastList').textContent = rows.join('\n');
+  }
   const badge = document.getElementById('trendBadge');
   const badgeColor = bias.direction === 'up' ? '#3fb950' : bias.direction === 'down' ? '#f85149' : '#8b949e';
   badge.textContent = `趋势: ${dirText}`;

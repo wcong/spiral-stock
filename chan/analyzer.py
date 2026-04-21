@@ -9,6 +9,7 @@ from .kline import RawCandle, MergedCandle, merge_candles
 from .structure import Bi, Segment, find_bis, find_segments
 from .zhongshu import ZhongShu, find_zhongshus
 from .signals import BuyPoint, SellPoint, find_buy_sell_points
+from .beichi import detect_trend_beichi, detect_pan_beichi, detect_simple_beichi
 
 
 @dataclass
@@ -175,9 +176,11 @@ def analyze_multi_level(
 
 def result_to_dict(result: ChanResult) -> dict:
     """将结果序列化为可JSON化的字典"""
+    diag = _build_diagnostics(result)
     return {
         "trend": infer_trend(result),
         "trend_meta": infer_trend_meta(result),
+        "diagnostics": diag,
         "candles": [
             {
                 "dt": c.dt,
@@ -267,6 +270,26 @@ def result_to_dict(result: ChanResult) -> dict:
             }
             for sp in result.sell_points
         ],
+    }
+
+
+def _build_diagnostics(result: ChanResult) -> dict:
+    trend_beichi = detect_trend_beichi(result.bis, result.zhongshus)
+    pan_beichi = detect_pan_beichi(result.bis, result.zhongshus)
+    simple_beichi = detect_simple_beichi(result.bis)
+
+    return {
+        'raw_candles': len(result.raw_candles),
+        'merged_candles': len(result.merged_candles),
+        'bis': len(result.bis),
+        'segments': len(result.segments),
+        'zhongshus': len(result.zhongshus),
+        'beichi_trend': len(trend_beichi),
+        'beichi_pan': len(pan_beichi),
+        'beichi_simple': len(simple_beichi),
+        'beichi_total': len(trend_beichi) + len(pan_beichi) + len(simple_beichi),
+        'buy_points': len(result.buy_points),
+        'sell_points': len(result.sell_points),
     }
 
 
