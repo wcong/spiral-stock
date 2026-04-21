@@ -39,8 +39,9 @@
     transition: all 0.2s;
   }
   .tab-btn.active { background: #21262d; color: #e6edf3; border-color: #58a6ff; }
-  .tab-panel { display: none; flex-direction: column; overflow: hidden; }
+  .tab-panel { display: none; flex-direction: column; overflow: hidden; flex: 1; }
   .tab-panel.active { display: flex; }
+  .sidebar-scroll { overflow-y: auto; height: 100%; }
   .input-row { display: flex; gap: 8px; }
   .input-row input {
     flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid #30363d;
@@ -180,6 +181,7 @@
   <div class="sidebar">
 
     <div class="tab-panel active" id="panelData">
+    <div class="sidebar-scroll">
 
     <div class="sidebar-section">
       <h3>数据输入</h3>
@@ -240,8 +242,10 @@
     </div>
 
     </div>
+    </div>
 
     <div class="tab-panel" id="panelCrawler">
+    <div class="sidebar-scroll">
 
       <div class="sidebar-section">
         <h3>抓取近一年</h3>
@@ -268,6 +272,7 @@
         <button class="btn btn-secondary" id="crawlUse" style="margin-top:10px;display:none" onclick="useCrawlData()">直接分析这份数据</button>
       </div>
 
+    </div>
     </div>
 
   </div>
