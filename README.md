@@ -99,6 +99,32 @@ Response (trimmed):
 
 Returns sample K-line data.
 
+## Production
+
+Use a WSGI server (gunicorn) instead of the Flask dev server.
+
+Install:
+
+```bash
+pip install gunicorn
+```
+
+Run:
+
+```bash
+PORT=8080 gunicorn -w 2 -b 0.0.0.0:8080 app:app
+```
+
+Then open:
+
+```
+http://localhost:8080
+```
+
+Notes:
+- Set `PORT` to any safe port (avoid Chrome-blocked ports like 5060).
+- Use a reverse proxy (nginx) if you need HTTPS or domain routing.
+
 ## Notes
 
 - If the input series is daily data, the 30min/60min/1D aggregation may skip some levels.
