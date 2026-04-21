@@ -118,7 +118,7 @@ PORT=8080 gunicorn -w 2 -b 0.0.0.0:80 app:app
 Background run:
 
 ```bash
-conda run -n spiral gunicorn -w 2 -b 0.0.0.0:80 app:app
+nohup conda run -n spiral gunicorn -w 2 -b 0.0.0.0:80 app:app > gunicorn.log 2>&1 &
 ```
 
 Then open:
