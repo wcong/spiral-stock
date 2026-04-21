@@ -112,13 +112,19 @@ pip install gunicorn
 Run:
 
 ```bash
-PORT=8080 gunicorn -w 2 -b 0.0.0.0:8080 app:app
+PORT=8080 gunicorn -w 2 -b 0.0.0.0:80 app:app
+```
+
+Background run:
+
+```bash
+conda run -n spiral gunicorn -w 2 -b 0.0.0.0:80 app:app
 ```
 
 Then open:
 
 ```
-http://localhost:8080
+http://localhost:80
 ```
 
 Notes:
