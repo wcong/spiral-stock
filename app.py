@@ -262,6 +262,22 @@ def api_stock_data():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/stock_file', methods=['DELETE'])
+def api_stock_file():
+    """删除本地 stock_data 文件"""
+    try:
+        fname = request.args.get('file', '').strip()
+        if not fname or '/' in fname or '\\' in fname:
+            return jsonify({'error': '文件名无效'}), 400
+        path = os.path.join(STOCK_DATA_DIR, fname)
+        if not os.path.isfile(path):
+            return jsonify({'error': '文件不存在'}), 404
+        os.remove(path)
+        return jsonify({'success': True, 'file': fname})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/crawl', methods=['POST'])
 def api_crawl():
     """抓取东方财富K线数据并保存"""

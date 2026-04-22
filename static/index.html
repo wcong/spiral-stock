@@ -114,6 +114,16 @@
   .signal-reason { font-size: 11px; color: #8b949e; white-space: pre-line; line-height: 1.6; }
   .signal-reason.collapsed { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
+  .file-item {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .file-item .file-load {
+    flex: 1; text-align: left;
+  }
+  .file-item .file-delete {
+    width: 34px; padding: 6px 0; text-align: center;
+  }
+
   /* 主图区 */
   .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   .chart-toolbar {
@@ -211,7 +221,10 @@
 
     <div class="sidebar-section">
       <h3>数据输入</h3>
-      <div style="margin-top:6px;font-size:12px;color:#8b949e">本地数据</div>
+      <div style="margin-top:6px;font-size:12px;color:#8b949e;display:flex;align-items:center;gap:6px;">
+        <span>本地数据</span>
+        <button class="btn btn-secondary" id="refreshLocalFiles" style="width:auto;padding:4px 8px;margin-bottom:0" onclick="loadLocalFileList()">刷新</button>
+      </div>
       <div id="stockFileList" style="margin-top:8px;display:flex;flex-direction:column;gap:6px;max-height:160px;overflow:auto"></div>
     </div>
 
@@ -444,6 +457,7 @@ let chart = null;
 let analysisData = null;
 let lastCrawlData = null;
 let lastLoadedData = null;
+let lastLoadedFile = null;
 
 // 初始化ECharts
 function initChart() {
@@ -455,6 +469,11 @@ function initChart() {
 // 加载示例数据
 async function loadLocalFileList() {
   const container = document.getElementById('stockFileList');
+  const refreshBtn = document.getElementById('refreshLocalFiles');
+  if (refreshBtn) {
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = '加载中...';
+  }
   container.innerHTML = '<div style="color:#8b949e;font-size:12px">加载中...</div>';
   try {
     const resp = await fetch('/api/stock_files');
@@ -465,10 +484,18 @@ async function loadLocalFileList() {
       return;
     }
     container.innerHTML = files.map(f => (
-      `<button class="btn btn-secondary" style="text-align:left" onclick="loadLocalFile('${f.file}')">${f.code}${f.interval ? ' · ' + f.interval : ''}</button>`
+      `<div class="file-item">
+        <button class="btn btn-secondary file-load" onclick="loadLocalFile('${f.file}')">${f.code}${f.interval ? ' · ' + f.interval : ''}</button>
+        <button class="btn btn-danger file-delete" title="删除" onclick="deleteLocalFile(event,'${f.file}')">×</button>
+      </div>`
     )).join('');
   } catch (e) {
     container.innerHTML = `<div style="color:#f85149;font-size:12px">加载失败: ${e.message}</div>`;
+  } finally {
+    if (refreshBtn) {
+      refreshBtn.disabled = false;
+      refreshBtn.textContent = '刷新';
+    }
   }
 }
 
@@ -479,12 +506,32 @@ async function loadLocalFile(file) {
     const json = await resp.json();
     if (!json.success) throw new Error(json.error);
     lastLoadedData = json.data || [];
+    lastLoadedFile = file;
     setDateRangeDefaults(lastLoadedData);
     await applyDateRangeAndAnalyze();
   } catch (e) {
     setStatus('error', '加载失败: ' + e.message);
   } finally {
     showLoading(false);
+  }
+}
+
+async function deleteLocalFile(evt, file) {
+  evt.stopPropagation();
+  const ok = window.confirm(`确认删除本地文件：${file} ?`);
+  if (!ok) return;
+  try {
+    const resp = await fetch(`/api/stock_file?file=${encodeURIComponent(file)}`, { method: 'DELETE' });
+    const json = await resp.json();
+    if (!json.success) throw new Error(json.error);
+    if (lastLoadedFile === file) {
+      lastLoadedFile = null;
+      lastLoadedData = null;
+      setStatus('idle', '已删除当前文件，请重新加载数据');
+    }
+    await loadLocalFileList();
+  } catch (e) {
+    setStatus('error', '删除失败: ' + e.message);
   }
 }
 
