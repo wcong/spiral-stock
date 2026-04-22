@@ -160,6 +160,32 @@
   .tooltip-panel h4 { color: #58a6ff; margin-bottom: 8px; font-size: 14px; }
   .tooltip-close { position: absolute; top: 8px; right: 12px; cursor: pointer; color: #8b949e; font-size: 18px; }
 
+  .info-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(13,17,23,0.7);
+    z-index: 300; align-items: center; justify-content: center;
+  }
+  .info-overlay.active { display: flex; }
+  .info-modal {
+    width: min(860px, 92vw); max-height: 86vh;
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.45); display: flex; flex-direction: column;
+  }
+  .info-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px; border-bottom: 1px solid #21262d;
+  }
+  .info-title { font-size: 14px; font-weight: 700; color: #e6edf3; }
+  .info-close { margin-left: auto; cursor: pointer; color: #8b949e; font-size: 18px; }
+  .info-tabs { display: flex; gap: 6px; padding: 10px 16px; border-bottom: 1px solid #21262d; }
+  .info-tab {
+    padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;
+    border: 1px solid #30363d; background: #0d1117; color: #8b949e;
+  }
+  .info-tab.active { background: #21262d; color: #e6edf3; border-color: #58a6ff; }
+  .info-body { padding: 16px; overflow: auto; }
+  .info-panel { display: none; }
+  .info-panel.active { display: block; }
+
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: #0d1117; }
   ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
@@ -224,15 +250,12 @@
     </div>
 
     <div class="sidebar-section">
-      <h3>结构诊断</h3>
-      <div style="font-size:12px;color:#8b949e;line-height:1.6" id="diagSummary">-</div>
-      <div style="margin-top:6px;font-size:11px;color:#8b949e;line-height:1.6" id="diagDetail">-</div>
-    </div>
-
-    <div class="sidebar-section">
-      <h3>趋势预测</h3>
-      <div style="font-size:12px;color:#8b949e;line-height:1.6" id="forecastList">-</div>
-      <div style="margin-top:6px;font-size:11px;color:#8b949e;line-height:1.6">仅为概率评估，非确定预测</div>
+      <h3>信息面板</h3>
+      <button class="btn btn-secondary" onclick="openInfoModal('diagnostics')">结构诊断</button>
+      <button class="btn btn-secondary" onclick="openInfoModal('forecast')">趋势预测</button>
+      <button class="btn btn-secondary" onclick="openInfoModal('rules')">60m 参考规则</button>
+      <button class="btn btn-secondary" onclick="openInfoModal('filters')">60m 规则筛选</button>
+      <div style="margin-top:6px;font-size:11px;color:#8b949e;line-height:1.6">详细信息将在弹窗中展示</div>
     </div>
 
     <div class="signals-list" id="signalsList">
@@ -248,13 +271,27 @@
     <div class="sidebar-scroll">
 
       <div class="sidebar-section">
-        <h3>抓取近一年</h3>
+        <h3>抓取数据</h3>
         <div style="font-size:12px;color:#8b949e;line-height:1.6;margin-bottom:8px;">
-          数据源：东方财富日线（默认前复权）
+          数据源：东方财富（支持分钟/日/周）
         </div>
         <div class="input-row" style="margin-bottom:8px;">
           <input type="text" id="crawlCode" placeholder="股票代码，如 002594 或 sz002594">
           <button class="btn btn-primary" style="width:auto" onclick="crawlData()">抓取</button>
+        </div>
+        <div class="input-row" style="margin-bottom:8px;">
+          <select id="crawlKlt" style="flex:1;padding:8px 10px;border-radius:6px;border:1px solid #30363d;background:#0d1117;color:#e6edf3;font-size:12px;">
+            <option value="1">1分钟</option>
+            <option value="5" selected>5分钟</option>
+            <option value="30">30分钟</option>
+            <option value="60">60分钟</option>
+            <option value="101">日线</option>
+            <option value="102">周线</option>
+          </select>
+        </div>
+        <div class="input-row" style="margin-bottom:8px;">
+          <input type="date" id="crawlStart">
+          <input type="date" id="crawlEnd">
         </div>
         <div class="input-row" style="margin-bottom:8px;">
           <select id="crawlFqt" style="flex:1;padding:8px 10px;border-radius:6px;border:1px solid #30363d;background:#0d1117;color:#e6edf3;font-size:12px;">
@@ -331,6 +368,77 @@
   <div id="tooltipContent"></div>
 </div>
 
+<div class="info-overlay" id="infoOverlay" onclick="onInfoOverlayClick(event)">
+  <div class="info-modal">
+    <div class="info-header">
+      <div class="info-title">分析细节</div>
+      <div class="info-close" onclick="closeInfoModal()">×</div>
+    </div>
+    <div class="info-tabs">
+      <button class="info-tab active" id="infoTabDiagnostics" onclick="switchInfoTab('diagnostics')">结构诊断</button>
+      <button class="info-tab" id="infoTabForecast" onclick="switchInfoTab('forecast')">趋势预测</button>
+      <button class="info-tab" id="infoTabRules" onclick="switchInfoTab('rules')">60m 参考规则</button>
+      <button class="info-tab" id="infoTabFilters" onclick="switchInfoTab('filters')">60m 规则筛选</button>
+    </div>
+    <div class="info-body">
+      <div class="info-panel active" id="infoPanelDiagnostics">
+        <div style="font-size:12px;color:#8b949e;line-height:1.6" id="diagSummary">-</div>
+        <div style="margin-top:6px;font-size:11px;color:#8b949e;line-height:1.6" id="diagDetail">-</div>
+      </div>
+      <div class="info-panel" id="infoPanelForecast">
+        <div style="font-size:12px;color:#8b949e;line-height:1.6" id="forecastList">-</div>
+        <div style="margin-top:6px;font-size:11px;color:#8b949e;line-height:1.6">仅为概率评估，非确定预测</div>
+      </div>
+      <div class="info-panel" id="infoPanelRules">
+        <div style="font-size:12px;color:#8b949e;line-height:1.7">
+          1) 先定趋势：60m 向上/盘整/向下，逆势不做。
+          2) 结构位置：优先上涨趋势里的回调，避免下跌趋势抄底。
+          3) 重点买点：2买/3买优先，1买只做强势回调。
+          4) 背驰验证：回调段出现背驰更可靠。
+          5) 中枢确认：价格站上中枢上沿，回踩不破更好。
+          6) 次日触发：次日上破昨日关键高点再考虑介入。
+          7) 风控：止损放在最近结构低点或中枢下沿。
+        </div>
+        <div style="margin-top:6px;font-size:11px;color:#8b949e;line-height:1.6">仅作方法参考，请自行验证和回测。</div>
+      </div>
+      <div class="info-panel" id="infoPanelFilters">
+        <div class="toggle-item">
+          <input type="checkbox" id="useRuleFilter" onchange="redraw();renderSignalList();">
+          <span class="color-dot" style="background:#8b949e"></span>
+          <label for="useRuleFilter">启用规则筛选</label>
+          <span class="badge" id="badge-rule">0</span>
+        </div>
+        <div class="toggle-item">
+          <input type="checkbox" id="ruleOnlyBuy" checked onchange="redraw();renderSignalList();">
+          <span class="color-dot" style="background:#3fb950"></span>
+          <label for="ruleOnlyBuy">仅看买点</label>
+        </div>
+        <div class="toggle-item">
+          <input type="checkbox" id="ruleB23" checked onchange="redraw();renderSignalList();">
+          <span class="color-dot" style="background:#58a6ff"></span>
+          <label for="ruleB23">仅 2买/3买</label>
+        </div>
+        <div class="toggle-item">
+          <input type="checkbox" id="ruleBeichi" checked onchange="redraw();renderSignalList();">
+          <span class="color-dot" style="background:#f59e0b"></span>
+          <label for="ruleBeichi">需要背驰</label>
+        </div>
+        <div class="toggle-item">
+          <input type="checkbox" id="ruleZhongshuRetest" checked onchange="redraw();renderSignalList();">
+          <span class="color-dot" style="background:#38bdf8"></span>
+          <label for="ruleZhongshuRetest">中枢上沿回踩</label>
+        </div>
+        <div class="toggle-item">
+          <input type="checkbox" id="ruleNextBreak" onchange="redraw();renderSignalList();">
+          <span class="color-dot" style="background:#a78bfa"></span>
+          <label for="ruleNextBreak">下一根突破高点</label>
+        </div>
+        <div style="margin-top:6px;font-size:11px;color:#8b949e;line-height:1.6" id="ruleFilterHint">-</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 let chart = null;
 let analysisData = null;
@@ -357,7 +465,7 @@ async function loadLocalFileList() {
       return;
     }
     container.innerHTML = files.map(f => (
-      `<button class="btn btn-secondary" style="text-align:left" onclick="loadLocalFile('${f.file}')">${f.code}</button>`
+      `<button class="btn btn-secondary" style="text-align:left" onclick="loadLocalFile('${f.file}')">${f.code}${f.interval ? ' · ' + f.interval : ''}</button>`
     )).join('');
   } catch (e) {
     container.innerHTML = `<div style="color:#f85149;font-size:12px">加载失败: ${e.message}</div>`;
@@ -457,13 +565,59 @@ function redraw() {
   chart.setOption(option, true);
 }
 
+function getBaseSignalLists() {
+  const useFiltered = document.getElementById('useFiltered').checked;
+  const buyList = useFiltered ? (analysisData.filtered_buy_points || []) : analysisData.buy_points || [];
+  const sellList = useFiltered ? (analysisData.filtered_sell_points || []) : analysisData.sell_points || [];
+  return { buyList, sellList };
+}
+
+function getDisplaySignalLists() {
+  const { buyList, sellList } = getBaseSignalLists();
+  const useRuleFilter = document.getElementById('useRuleFilter')?.checked;
+  if (!useRuleFilter) return { buyList, sellList };
+  return {
+    buyList: applyRuleFilter(buyList, 'buy'),
+    sellList: applyRuleFilter(sellList, 'sell'),
+  };
+}
+
+function applyRuleFilter(list, side) {
+  const onlyBuy = document.getElementById('ruleOnlyBuy')?.checked;
+  if (onlyBuy && side === 'sell') return [];
+  return list.filter(s => signalPassesRule(s));
+}
+
+function signalPassesRule(signal) {
+  const onlyB23 = document.getElementById('ruleB23')?.checked;
+  const needBeichi = document.getElementById('ruleBeichi')?.checked;
+  const needZsRetest = document.getElementById('ruleZhongshuRetest')?.checked;
+  const needNextBreak = document.getElementById('ruleNextBreak')?.checked;
+
+  const btype = Number(signal.btype);
+  if (onlyB23 && ![2, 3].includes(btype)) return false;
+
+  const text = `${signal.reason || ''} ${signal.source || ''}`;
+  if (needBeichi && !/(背驰|背离)/.test(text)) return false;
+  if (needZsRetest && !/(中枢).*(上沿|回踩|突破)/.test(text)) return false;
+  if (needNextBreak && !isNextBreakout(signal)) return false;
+  return true;
+}
+
+function isNextBreakout(signal) {
+  if (!analysisData || !analysisData.raw_candles) return false;
+  const idx = analysisData.raw_candles.findIndex(c => c.dt === signal.dt);
+  if (idx < 0 || idx + 1 >= analysisData.raw_candles.length) return false;
+  const cur = analysisData.raw_candles[idx];
+  const next = analysisData.raw_candles[idx + 1];
+  return next.high > cur.high;
+}
+
 function buildChartOption(d) {
   const dates = d.raw_candles.map(c => c.dt);
   const candleData = d.raw_candles.map(c => [c.open, c.close, c.low, c.high]);
   const volumes = d.raw_candles.map(c => c.volume || 0);
-  const useFiltered = document.getElementById('useFiltered').checked;
-  const buyList = useFiltered ? (d.filtered_buy_points || []) : d.buy_points;
-  const sellList = useFiltered ? (d.filtered_sell_points || []) : d.sell_points;
+  const { buyList, sellList } = getDisplaySignalLists();
   const trendDir = d.trade_bias?.direction || d.trend || 'side';
   const trendText = trendDir === 'up' ? '趋势: 上行 ▲' : trendDir === 'down' ? '趋势: 下行 ▼' : '趋势: 震荡 •';
   const trendColor = trendDir === 'up' ? '#3fb950' : trendDir === 'down' ? '#f85149' : '#8b949e';
@@ -691,9 +845,7 @@ function tooltipFormatter(params) {
   const kParam = params.find(p => p.seriesName === 'K线');
   if (!kParam) return '';
   const dt = kParam.axisValue;
-  const useFiltered = document.getElementById('useFiltered').checked;
-  const buyList = useFiltered ? (analysisData.filtered_buy_points || []) : analysisData.buy_points;
-  const sellList = useFiltered ? (analysisData.filtered_sell_points || []) : analysisData.sell_points;
+  const { buyList, sellList } = getDisplaySignalLists();
 
   const raw = analysisData?.raw_candles?.find(c => c.dt === dt);
   const open = raw ? raw.open : kParam.data[0];
@@ -728,9 +880,7 @@ function onChartClick(params) {
   if (!analysisData) return;
   const dt = params.data?.coord?.[0] || params.value?.[0] || null;
   if (!dt) return;
-  const useFiltered = document.getElementById('useFiltered').checked;
-  const buyList = useFiltered ? (analysisData.filtered_buy_points || []) : analysisData.buy_points;
-  const sellList = useFiltered ? (analysisData.filtered_sell_points || []) : analysisData.sell_points;
+  const { buyList, sellList } = getDisplaySignalLists();
 
   const bp = buyList.find(p => p.dt === dt);
   const sp = sellList.find(p => p.dt === dt);
@@ -765,16 +915,45 @@ function closeTooltip() {
   document.getElementById('tooltipPanel').style.display = 'none';
 }
 
+function openInfoModal(tab) {
+  const overlay = document.getElementById('infoOverlay');
+  overlay.classList.add('active');
+  switchInfoTab(tab || 'diagnostics');
+}
+
+function closeInfoModal() {
+  document.getElementById('infoOverlay').classList.remove('active');
+}
+
+function switchInfoTab(tab) {
+  const tabs = ['diagnostics', 'forecast', 'rules', 'filters'];
+  tabs.forEach(t => {
+    document.getElementById(`infoTab${capitalize(t)}`).classList.toggle('active', t === tab);
+    document.getElementById(`infoPanel${capitalize(t)}`).classList.toggle('active', t === tab);
+  });
+}
+
+function onInfoOverlayClick(evt) {
+  if (evt.target.id === 'infoOverlay') closeInfoModal();
+}
+
+function capitalize(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function renderSignalList() {
   if (!analysisData) return;
   const container = document.getElementById('signalsList');
-  const useFiltered = document.getElementById('useFiltered').checked;
-  const buyList = useFiltered ? (analysisData.filtered_buy_points || []) : analysisData.buy_points;
-  const sellList = useFiltered ? (analysisData.filtered_sell_points || []) : analysisData.sell_points;
+  const { buyList, sellList } = getDisplaySignalLists();
   const allSignals = [
     ...buyList.map(p => ({ ...p, side: 'buy' })),
     ...sellList.map(p => ({ ...p, side: 'sell' })),
   ].sort((a, b) => a.dt.localeCompare(b.dt));
+
+  const ruleHint = document.getElementById('ruleFilterHint');
+  const ruleBadge = document.getElementById('badge-rule');
+  if (ruleBadge) ruleBadge.textContent = buyList.length + sellList.length;
+  if (ruleHint) ruleHint.textContent = `规则筛选后：买${buyList.length} / 卖${sellList.length}`;
 
   if (allSignals.length === 0) {
     container.innerHTML = '<div style="color:#8b949e;font-size:13px;text-align:center;padding:20px;">未发现买卖信号</div>';
@@ -824,9 +1003,7 @@ function onSignalClick(dt, side) {
   });
 
   // 显示详情
-  const useFiltered = document.getElementById('useFiltered').checked;
-  const buyList = useFiltered ? (analysisData.filtered_buy_points || []) : analysisData.buy_points;
-  const sellList = useFiltered ? (analysisData.filtered_sell_points || []) : analysisData.sell_points;
+  const { buyList, sellList } = getDisplaySignalLists();
   const signal = side === 'buy'
     ? buyList.find(p => p.dt === dt)
     : sellList.find(p => p.dt === dt);
@@ -859,9 +1036,25 @@ function switchTab(tab) {
 async function crawlData() {
   const code = document.getElementById('crawlCode').value.trim();
   const fqt = document.getElementById('crawlFqt').value;
+  const klt = document.getElementById('crawlKlt').value;
+  const start = document.getElementById('crawlStart').value;
+  const end = document.getElementById('crawlEnd').value;
   if (!code) {
     document.getElementById('crawlHint').textContent = '请输入股票代码';
     return;
+  }
+  if ((start && !end) || (!start && end)) {
+    document.getElementById('crawlHint').textContent = '请同时填写开始与结束日期';
+    return;
+  }
+  if (['1','5','30','60'].includes(klt) && start && end) {
+    const s = new Date(start);
+    const e = new Date(end);
+    const diffDays = Math.ceil((e - s) / (1000 * 60 * 60 * 24));
+    if (diffDays > 120) {
+      document.getElementById('crawlHint').textContent = '分钟级区间过大，建议缩短到120天以内';
+      return;
+    }
   }
   showLoading(true);
   document.getElementById('crawlHint').textContent = '抓取中...';
@@ -871,14 +1064,16 @@ async function crawlData() {
     const resp = await fetch('/api/crawl', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, fqt }),
+      body: JSON.stringify({ code, fqt, klt, start, end }),
     });
     const json = await resp.json();
     if (!json.success) throw new Error(json.error);
     lastCrawlData = json.data || [];
     document.getElementById('crawlHint').textContent = '抓取完成';
     const fqtLabel = json.fqt === '1' ? '前复权' : json.fqt === '2' ? '后复权' : '不复权';
-    document.getElementById('crawlResult').textContent = `保存：${json.file}，条数：${json.count}，${fqtLabel}`;
+    const kltLabel = json.klt_label || '1d';
+    const rangeLabel = json.start && json.end ? `，区间：${json.start}~${json.end}` : '';
+    document.getElementById('crawlResult').textContent = `保存：${json.file}，条数：${json.count}，周期：${kltLabel}，${fqtLabel}${rangeLabel}`;
     document.getElementById('crawlUse').style.display = 'inline-block';
   } catch (e) {
     document.getElementById('crawlHint').textContent = `抓取失败：${e.message}`;
@@ -941,6 +1136,16 @@ async function applyDateRangeAndAnalyze() {
   await runAnalysis(filtered);
 }
 
+function enableDatePicker(id) {
+  const input = document.getElementById(id);
+  if (!input) return;
+  const tryShow = () => {
+    if (typeof input.showPicker === 'function') input.showPicker();
+  };
+  input.addEventListener('focus', tryShow);
+  input.addEventListener('click', tryShow);
+}
+
 
 // 点击空白关闭弹窗
 document.addEventListener('click', (e) => {
@@ -951,6 +1156,7 @@ document.addEventListener('click', (e) => {
 
 initChart();
 loadLocalFileList();
+['rangeStart', 'rangeEnd', 'crawlStart', 'crawlEnd'].forEach(enableDatePicker);
 </script>
 </body>
 </html>

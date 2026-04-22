@@ -235,8 +235,10 @@ def api_stock_files():
         files.sort(reverse=True)
         items = []
         for f in files:
-            code = f.split('_')[0]
-            items.append({'file': f, 'code': code})
+            parts = f.split('_')
+            code = parts[0] if parts else f
+            interval = parts[1] if len(parts) > 2 else ''
+            items.append({'file': f, 'code': code, 'interval': interval})
         return jsonify({'files': items})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -267,8 +269,13 @@ def api_crawl():
         body = request.get_json(force=True) or {}
         code = str(body.get('code', '')).strip()
         fqt = str(body.get('fqt', '0')).strip()
+        klt = str(body.get('klt', '101')).strip()
+        start_str = str(body.get('start', '')).strip()
+        end_str = str(body.get('end', '')).strip()
         if fqt not in {'0', '1', '2'}:
             return jsonify({'error': 'fqt 参数无效，仅支持 0/1/2'}), 400
+        if klt not in {'1', '5', '30', '60', '101', '102'}:
+            return jsonify({'error': 'klt 参数无效，仅支持 1/5/30/60/101/102'}), 400
         if not code:
             return jsonify({'error': '请提供股票代码'}), 400
 
@@ -276,13 +283,22 @@ def api_crawl():
         if not secid:
             return jsonify({'error': '无法识别股票代码'}), 400
 
-        end_dt = datetime.now().date()
-        start_dt = end_dt - timedelta(days=365)
+        if start_str and end_str:
+            try:
+                start_dt = datetime.strptime(start_str, '%Y-%m-%d').date()
+                end_dt = datetime.strptime(end_str, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'error': '时间格式需为 YYYY-MM-DD'}), 400
+            if start_dt > end_dt:
+                return jsonify({'error': '开始日期不能晚于结束日期'}), 400
+        else:
+            end_dt = datetime.now().date()
+            start_dt = end_dt - timedelta(days=365)
         params = {
             'secid': secid,
             'fields1': 'f1,f2,f3,f4,f5,f6',
             'fields2': 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
-            'klt': '101',
+            'klt': klt,
             'fqt': fqt,
             'beg': start_dt.strftime('%Y%m%d'),
             'end': end_dt.strftime('%Y%m%d'),
@@ -313,8 +329,17 @@ def api_crawl():
                 'volume': float(parts[5]),
             })
 
+        if klt in {'1', '5', '30', '60'}:
+            has_time = any(' ' in r['dt'] for r in records[:5])
+            if not has_time:
+                return jsonify({
+                    'error': '分钟级数据未返回时间字段，建议缩短区间或改用日/周线',
+                    'klt': klt,
+                }), 502
+
         os.makedirs(STOCK_DATA_DIR, exist_ok=True)
-        filename = f"{code}_{start_dt.strftime('%Y%m%d')}_{end_dt.strftime('%Y%m%d')}.json"
+        klt_label = _klt_label(klt)
+        filename = f"{code}_{klt_label}_{start_dt.strftime('%Y%m%d')}_{end_dt.strftime('%Y%m%d')}.json"
         file_path = os.path.join(STOCK_DATA_DIR, filename)
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump({'data': records}, f, ensure_ascii=False)
@@ -325,6 +350,10 @@ def api_crawl():
             'file': os.path.join('stock_data', filename),
             'count': len(records),
             'fqt': fqt,
+            'klt': klt,
+            'klt_label': klt_label,
+            'start': start_dt.strftime('%Y-%m-%d'),
+            'end': end_dt.strftime('%Y-%m-%d'),
         })
 
     except Exception as e:
@@ -346,6 +375,18 @@ def _to_eastmoney_secid(code: str) -> str | None:
     if c.startswith('0') or c.startswith('3'):
         return f"0.{c}"
     return None
+
+
+def _klt_label(klt: str) -> str:
+    mapping = {
+        '1': '1m',
+        '5': '5m',
+        '30': '30m',
+        '60': '60m',
+        '101': '1d',
+        '102': '1w',
+    }
+    return mapping.get(klt, '1d')
 
 
 if __name__ == '__main__':
