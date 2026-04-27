@@ -6,7 +6,7 @@ from typing import Optional
 import pandas as pd
 
 from .kline import RawCandle, MergedCandle, merge_candles
-from .structure import Bi, Segment, find_bis, find_segments
+from .structure import Bi, Segment, find_bis, find_segments, find_fractals
 from .zhongshu import ZhongShu, find_zhongshus
 from .signals import BuyPoint, SellPoint, find_buy_sell_points
 from .beichi import detect_trend_beichi, detect_pan_beichi, detect_simple_beichi
@@ -177,10 +177,34 @@ def analyze_multi_level(
 def result_to_dict(result: ChanResult) -> dict:
     """将结果序列化为可JSON化的字典"""
     diag = _build_diagnostics(result)
+    trend_beichi = detect_trend_beichi(result.bis, result.zhongshus, result.raw_candles)
+    pan_beichi = detect_pan_beichi(result.bis, result.zhongshus, result.raw_candles)
+    simple_beichi = detect_simple_beichi(result.bis, result.raw_candles)
+    all_beichi = trend_beichi + pan_beichi + simple_beichi
+    beichi_items = []
+    if all_beichi:
+        bi_by_index = {b.index: b for b in result.bis}
+        for bc in all_beichi:
+            bi = bi_by_index.get(bc.bi_index)
+            if not bi:
+                continue
+            beichi_items.append({
+                "bi_index": bc.bi_index,
+                "btype": bc.btype,
+                "direction": bc.direction,
+                "strength": bc.strength,
+                "desc": bc.desc,
+                "start_dt": bi.start_dt,
+                "end_dt": bi.end_dt,
+                "start_price": bi.start_price,
+                "end_price": bi.end_price,
+            })
+    fractals = find_fractals(result.merged_candles)
     return {
         "trend": infer_trend(result),
         "trend_meta": infer_trend_meta(result),
         "diagnostics": diag,
+        "beichi": beichi_items,
         "candles": [
             {
                 "dt": c.dt,
@@ -212,6 +236,15 @@ def result_to_dict(result: ChanResult) -> dict:
                 "index": c.index,
             }
             for c in result.merged_candles
+        ],
+        "fractals": [
+            {
+                "index": f.index,
+                "ftype": f.ftype,
+                "dt": f.dt,
+                "price": f.high if f.ftype == 'top' else f.low,
+            }
+            for f in fractals
         ],
         "bis": [
             {
@@ -274,9 +307,9 @@ def result_to_dict(result: ChanResult) -> dict:
 
 
 def _build_diagnostics(result: ChanResult) -> dict:
-    trend_beichi = detect_trend_beichi(result.bis, result.zhongshus)
-    pan_beichi = detect_pan_beichi(result.bis, result.zhongshus)
-    simple_beichi = detect_simple_beichi(result.bis)
+    trend_beichi = detect_trend_beichi(result.bis, result.zhongshus, result.raw_candles)
+    pan_beichi = detect_pan_beichi(result.bis, result.zhongshus, result.raw_candles)
+    simple_beichi = detect_simple_beichi(result.bis, result.raw_candles)
 
     return {
         'raw_candles': len(result.raw_candles),

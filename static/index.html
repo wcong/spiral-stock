@@ -209,6 +209,7 @@
   <div class="tab-bar">
     <button class="tab-btn active" id="tabData" onclick="switchTab('data')">数据分析</button>
     <button class="tab-btn" id="tabCrawler" onclick="switchTab('crawler')">数据抓取</button>
+    <a class="tab-btn" href="/chan_guide" style="text-decoration:none;text-align:center;line-height:26px;">缠论指南</a>
   </div>
 </div>
 
@@ -337,6 +338,12 @@
         <span class="badge" id="badge-bi">0</span>
       </div>
       <div class="toggle-item">
+        <input type="checkbox" id="showFractal" checked onchange="redraw()">
+        <span class="color-dot" style="background:#f59e0b"></span>
+        <label for="showFractal">分型</label>
+        <span class="badge" id="badge-fractal">0</span>
+      </div>
+      <div class="toggle-item">
         <input type="checkbox" id="showSegment" checked onchange="redraw()">
         <span class="color-dot" style="background:#a78bfa"></span>
         <label for="showSegment">线段</label>
@@ -347,6 +354,12 @@
         <span class="color-dot" style="background:#38bdf8;opacity:0.5"></span>
         <label for="showZhongshu">中枢</label>
         <span class="badge" id="badge-zs">0</span>
+      </div>
+      <div class="toggle-item">
+        <input type="checkbox" id="showBeichi" checked onchange="redraw()">
+        <span class="color-dot" style="background:#f59e0b"></span>
+        <label for="showBeichi">背驰</label>
+        <span class="badge" id="badge-beichi">0</span>
       </div>
       <div class="toggle-item">
         <input type="checkbox" id="showBuy" checked onchange="redraw()">
@@ -400,6 +413,7 @@
       </div>
       <div class="info-panel" id="infoPanelForecast">
         <div style="font-size:12px;color:#8b949e;line-height:1.6" id="forecastList">-</div>
+        <div style="margin-top:10px;font-size:12px;color:#8b949e;line-height:1.6" id="priceLevels">-</div>
         <div style="margin-top:6px;font-size:11px;color:#8b949e;line-height:1.6">仅为概率评估，非确定预测</div>
       </div>
       <div class="info-panel" id="infoPanelRules">
@@ -458,6 +472,7 @@ let analysisData = null;
 let lastCrawlData = null;
 let lastLoadedData = null;
 let lastLoadedFile = null;
+let tooltipLockUntil = 0;
 
 // 初始化ECharts
 function initChart() {
@@ -557,6 +572,7 @@ function handleResult(json) {
   const filteredBuy = analysisData.filtered_buy_points || [];
   const filteredSell = analysisData.filtered_sell_points || [];
   const forecast = analysisData.forecast || [];
+  const priceLevels = analysisData.price_levels || {};
   
   // 更新统计
   document.getElementById('stat-candles').textContent = s.total_candles;
@@ -569,6 +585,8 @@ function handleResult(json) {
   document.getElementById('badge-buy').textContent = s.buy_points_count;
   document.getElementById('badge-sell').textContent = s.sell_points_count;
   document.getElementById('badge-filtered').textContent = filteredBuy.length + filteredSell.length;
+  document.getElementById('badge-beichi').textContent = diag.beichi_total || 0;
+  document.getElementById('badge-fractal').textContent = (analysisData.fractals || []).length;
 
   const dirText = bias.direction === 'up' ? '上行' : bias.direction === 'down' ? '下行' : '震荡';
   document.getElementById('trendSummary').textContent = `上级别趋势：${dirText}（来源 ${bias.source_level}）`;
@@ -593,6 +611,24 @@ function handleResult(json) {
       `未来${f.horizon_days}天：${fmtDir(f.direction)}，置信度${Math.round(f.confidence * 100)}%，${f.reason}`
     ));
     document.getElementById('forecastList').textContent = rows.join('\n');
+  }
+
+  const priceBox = document.getElementById('priceLevels');
+  if (!priceLevels.key_levels || priceLevels.key_levels.length === 0) {
+    priceBox.textContent = '关键价位：-';
+  } else {
+    const fmt = v => (v == null ? '-' : Number(v).toFixed(2));
+    const levelMap = Object.fromEntries(priceLevels.key_levels.map(l => [l.role, l]));
+    const lower = levelMap.lower;
+    const upper = levelMap.upper;
+    const buy = levelMap.buy;
+    const sell = levelMap.sell;
+    const asOf = priceLevels.as_of ? `截至 ${priceLevels.as_of}` : '最新';
+    priceBox.textContent = [
+      `${asOf} 关键区间：${fmt(lower?.price)} ~ ${fmt(upper?.price)}`,
+      `参考买入：${fmt(buy?.price)}（${buy?.reason || '-'}）`,
+      `参考卖出：${fmt(sell?.price)}（${sell?.reason || '-'}）`,
+    ].join('\n');
   }
   const badge = document.getElementById('trendBadge');
   const badgeColor = bias.direction === 'up' ? '#3fb950' : bias.direction === 'down' ? '#f85149' : '#8b949e';
@@ -665,6 +701,8 @@ function buildChartOption(d) {
   const candleData = d.raw_candles.map(c => [c.open, c.close, c.low, c.high]);
   const volumes = d.raw_candles.map(c => c.volume || 0);
   const { buyList, sellList } = getDisplaySignalLists();
+  const beichiList = d.beichi || [];
+  const fractals = d.fractals || [];
   const trendDir = d.trade_bias?.direction || d.trend || 'side';
   const trendText = trendDir === 'up' ? '趋势: 上行 ▲' : trendDir === 'down' ? '趋势: 下行 ▼' : '趋势: 震荡 •';
   const trendColor = trendDir === 'up' ? '#3fb950' : trendDir === 'down' ? '#f85149' : '#8b949e';
@@ -743,6 +781,24 @@ function buildChartOption(d) {
     });
   }
 
+  // 3.5 分型
+  if (document.getElementById('showFractal')?.checked && fractals.length > 0) {
+    const fractalPoints = fractals.map(f => ({
+      name: f.ftype === 'top' ? '顶分型' : '底分型',
+      value: [f.dt, f.price],
+      symbol: 'triangle',
+      symbolSize: 10,
+      symbolRotate: f.ftype === 'top' ? 180 : 0,
+      itemStyle: { color: f.ftype === 'top' ? '#f59e0b' : '#38bdf8' },
+    }));
+    series.push({
+      name: '分型', type: 'scatter',
+      xAxisIndex: 0, yAxisIndex: 0,
+      data: fractalPoints, z: 19,
+      tooltip: { show: false },
+    });
+  }
+
   // 4. 线段
   if (document.getElementById('showSegment').checked && d.segments.length > 0) {
     series.push({
@@ -785,6 +841,60 @@ function buildChartOption(d) {
         }
       });
     }
+  }
+
+  // 5.5 背驰区域 + 标记
+  if (document.getElementById('showBeichi')?.checked && beichiList.length > 0) {
+    const beichiAreas = beichiList.map(bc => {
+      const low = Math.min(bc.start_price, bc.end_price);
+      const high = Math.max(bc.start_price, bc.end_price);
+      const color = bc.direction === 'up' ? 'rgba(248,81,73,0.18)' : 'rgba(63,185,80,0.18)';
+      const label = bc.direction === 'up' ? '顶背驰' : '底背驰';
+      return [
+        { xAxis: bc.start_dt, yAxis: low, name: label, itemStyle: { color } },
+        { xAxis: bc.end_dt, yAxis: high },
+      ];
+    });
+
+    series.push({
+      name: '背驰区域', type: 'line',
+      xAxisIndex: 0, yAxisIndex: 0,
+      data: [], z: 9,
+      markArea: {
+        silent: false,
+        itemStyle: { borderColor: 'rgba(245,158,11,0.45)', borderWidth: 1 },
+        label: {
+          show: true, position: 'insideTopLeft',
+          fontSize: 10, color: '#f59e0b',
+          formatter: (p) => p.data?.name || '背驰',
+        },
+        data: beichiAreas,
+      }
+    });
+
+    const beichiPoints = beichiList.map(bc => ({
+      name: bc.direction === 'up' ? '顶背驰' : '底背驰',
+      value: [bc.end_dt, bc.end_price],
+      beichi: bc,
+      symbol: 'circle',
+      symbolSize: 12,
+      itemStyle: { color: bc.direction === 'up' ? '#f85149' : '#3fb950' },
+      label: {
+        show: true,
+        position: bc.direction === 'up' ? 'top' : 'bottom',
+        formatter: bc.direction === 'up' ? '顶背驰' : '底背驰',
+        color: bc.direction === 'up' ? '#f85149' : '#3fb950',
+        fontSize: 10,
+        fontWeight: 'bold',
+      },
+    }));
+
+    series.push({
+      name: '背驰', type: 'scatter',
+      xAxisIndex: 0, yAxisIndex: 0,
+      data: beichiPoints,
+      z: 21,
+    });
   }
 
   // 6. 买点标记
@@ -851,7 +961,7 @@ function buildChartOption(d) {
       formatter: tooltipFormatter,
     },
     legend: {
-      data: ['K线', '笔', '线段', '中枢', '买点', '卖点'],
+      data: ['K线', '分型', '笔', '线段', '中枢', '背驰', '买点', '卖点'],
       textStyle: { color: '#8b949e' },
       top: 4, right: 16,
     },
@@ -893,6 +1003,7 @@ function tooltipFormatter(params) {
   if (!kParam) return '';
   const dt = kParam.axisValue;
   const { buyList, sellList } = getDisplaySignalLists();
+  const beichiList = analysisData?.beichi || [];
 
   const raw = analysisData?.raw_candles?.find(c => c.dt === dt);
   const open = raw ? raw.open : kParam.data[0];
@@ -907,8 +1018,10 @@ function tooltipFormatter(params) {
   if (analysisData) {
     const bp = buyList.find(p => p.dt === dt);
     const sp = sellList.find(p => p.dt === dt);
+    const bc = beichiList.find(p => p.end_dt === dt);
     if (bp) signalHtml += `<div style="color:#3fb950;margin-top:6px">▲ 第${bp.btype}类买点</div>`;
     if (sp) signalHtml += `<div style="color:#f85149;margin-top:4px">▼ 第${sp.btype}类卖点</div>`;
+    if (bc) signalHtml += `<div style="color:#f59e0b;margin-top:4px">◆ ${bc.direction === 'up' ? '顶背驰' : '底背驰'}</div>`;
   }
 
   return `
@@ -925,6 +1038,41 @@ function tooltipFormatter(params) {
 
 function onChartClick(params) {
   if (!analysisData) return;
+  const beichiList = analysisData?.beichi || [];
+
+  if (params.seriesName === '背驰') {
+    const dt = params.value?.[0] || params.data?.value?.[0] || params.data?.coord?.[0] || null;
+    const bc = params.data?.beichi || beichiList.find(b => b.end_dt === dt);
+    if (bc) {
+      const title = `${bc.direction === 'up' ? '顶背驰' : '底背驰'} · ${bc.end_dt}`;
+      const reason = `${bc.desc}\n\n类型：${bc.btype} · 强度：${Math.round(bc.strength * 100)}%`;
+      showTooltipPanel(title, reason, params.event?.event);
+      return;
+    }
+  }
+
+  if (params.seriesName === '分型') {
+    const dt = params.value?.[0] || params.data?.value?.[0] || params.data?.coord?.[0] || null;
+    const price = params.value?.[1] || params.data?.value?.[1] || null;
+    const name = params.name || '分型';
+    const title = `${name} · ${dt || ''}`.trim();
+    const content = price != null ? `位置：${price.toFixed(2)}` : '分型标识点';
+    showTooltipPanel(title, content, params.event?.event);
+    return;
+  }
+
+  if (params.componentType === 'markArea' && params.seriesName === '背驰区域') {
+    const area = params.data || [];
+    const startDt = area[0]?.xAxis;
+    const endDt = area[1]?.xAxis;
+    const bc = beichiList.find(b => b.start_dt === startDt && b.end_dt === endDt);
+    if (bc) {
+      const title = `${bc.direction === 'up' ? '顶背驰' : '底背驰'} · ${bc.end_dt}`;
+      const reason = `${bc.desc}\n\n类型：${bc.btype} · 强度：${Math.round(bc.strength * 100)}%`;
+      showTooltipPanel(title, reason, params.event?.event);
+      return;
+    }
+  }
   const dt = params.data?.coord?.[0] || params.value?.[0] || null;
   if (!dt) return;
   const { buyList, sellList } = getDisplaySignalLists();
@@ -945,6 +1093,7 @@ function showTooltipPanel(title, content, evt) {
   document.getElementById('tooltipTitle').textContent = title;
   document.getElementById('tooltipContent').textContent = content;
   panel.style.display = 'block';
+  tooltipLockUntil = Date.now() + 250;
   if (evt) {
     let x = evt.clientX + 12, y = evt.clientY - 10;
     if (x + 420 > window.innerWidth) x = window.innerWidth - 430;
@@ -1196,6 +1345,7 @@ function enableDatePicker(id) {
 
 // 点击空白关闭弹窗
 document.addEventListener('click', (e) => {
+  if (Date.now() < tooltipLockUntil) return;
   if (!document.getElementById('tooltipPanel').contains(e.target) && !e.target.closest('.signal-card')) {
     closeTooltip();
   }

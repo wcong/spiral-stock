@@ -73,11 +73,14 @@ def find_zhongshus(bis: list[Bi]) -> list[ZhongShu]:
             bj_high = max(bj.start_price, bj.end_price)
             bj_low = min(bj.start_price, bj.end_price)
 
-            # 如果新笔完全在中枢区间外（离开中枢），停止延伸
-            if bj_low > zg or bj_high < zd:
+            new_zd = max(zd, bj_low)
+            new_zg = min(zg, bj_high)
+            # 如果更新后无重叠（离开中枢），停止延伸
+            if new_zg <= new_zd:
                 break
 
             zhu_bis.append(bj)
+            zd, zg = new_zd, new_zg
             gg = max(gg, bj_high)
             dd = min(dd, bj_low)
             j += 1

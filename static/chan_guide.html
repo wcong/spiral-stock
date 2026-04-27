@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>缠论入门到精通</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-2: #f59e0b;
+    --good: #3fb950;
+    --bad: #f85149;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", sans-serif;
+    background: radial-gradient(1200px 600px at 10% -10%, rgba(88,166,255,0.18), transparent),
+                radial-gradient(900px 500px at 95% 5%, rgba(245,158,11,0.14), transparent),
+                var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 {
+    font-size: 16px;
+    color: var(--accent);
+  }
+  header a {
+    margin-left: auto;
+    color: var(--muted);
+    text-decoration: none;
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+  }
+  header a:hover { color: var(--text); border-color: var(--accent); }
+
+  .container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 24px 18px 48px;
+    display: grid;
+    gap: 18px;
+  }
+
+  .hero {
+    background: linear-gradient(135deg, rgba(88,166,255,0.15), rgba(245,158,11,0.08));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero h2 { font-size: 20px; margin-bottom: 8px; }
+  .hero p { color: var(--muted); line-height: 1.7; font-size: 13px; }
+  .hero::after {
+    content: "";
+    position: absolute;
+    right: -80px;
+    top: -60px;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(88,166,255,0.18), transparent 60%);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    min-height: 140px;
+    animation: rise 0.5s ease both;
+  }
+  .card h3 { font-size: 14px; color: var(--accent); margin-bottom: 8px; }
+  .card p { color: var(--muted); font-size: 12px; line-height: 1.7; }
+
+  .toc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .toc a {
+    text-decoration: none;
+    font-size: 12px;
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(13,17,23,0.7);
+  }
+  .toc a:hover { border-color: var(--accent); color: var(--accent); }
+
+  .section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .section h3 { font-size: 15px; color: var(--accent-2); margin-bottom: 10px; }
+  .section ul { list-style: none; display: grid; gap: 8px; }
+  .section li {
+    padding: 10px;
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 2px 6px;
+    border-radius: 999px;
+    margin-right: 6px;
+  }
+  .case {
+    border-left: 3px solid var(--accent);
+  }
+  .case strong { color: var(--text); }
+
+  .knowledge {
+    display: grid;
+    gap: 14px;
+  }
+  .knowledge-block {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 12px;
+    padding: 14px;
+    display: grid;
+    gap: 10px;
+  }
+  .knowledge-title {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .knowledge-title h4 { font-size: 14px; color: var(--accent); }
+  .knowledge-title span { font-size: 11px; color: var(--muted); }
+  .knowledge-desc { color: var(--muted); font-size: 12px; line-height: 1.8; }
+  .knowledge-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+  .pill {
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid #21262d;
+    background: #0b0f14;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .diagram {
+    background: #0b0f14;
+    border: 1px dashed #2a313a;
+    border-radius: 12px;
+    padding: 12px;
+  }
+  .diagram svg { width: 100%; height: 160px; display: block; }
+  .case-grid {
+    display: grid;
+    gap: 8px;
+  }
+  .case-card {
+    border-left: 3px solid var(--accent-2);
+    background: #0b0f14;
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 12px;
+    line-height: 1.7;
+  }
+
+  @keyframes rise {
+    from { transform: translateY(6px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card { animation: none; }
+  }
+
+  .footer {
+    color: var(--muted);
+    font-size: 11px;
+    text-align: center;
+    padding-top: 8px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>缠论入门到精通</h1>
+  <a href="/">返回分析系统</a>
+</header>
+
+<main class="container">
+  <section class="hero">
+    <h2>从结构理解市场，从趋势制定交易</h2>
+    <p>
+      本页按“结构识别 → 信号确认 → 纪律执行”的思路，系统梳理缠论核心概念与实践步骤。
+      你会看到每个知识点的定义、判定条件、误区提醒、实战案例，以及对应的结构图解。
+    </p>
+    <div class="toc">
+      <a href="#fractals">分型与笔</a>
+      <a href="#segment">线段</a>
+      <a href="#zhongshu">中枢</a>
+      <a href="#beichi">背驰</a>
+      <a href="#signals">三类买卖点</a>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <h3>分型与笔</h3>
+      <p>分型是结构最小单元，决定笔的起止。笔完成需分型确认和有效间距。</p>
+    </div>
+    <div class="card">
+      <h3>线段</h3>
+      <p>线段由至少三笔构成，代表次级别趋势。破坏通常意味着趋势切换。</p>
+    </div>
+    <div class="card">
+      <h3>中枢</h3>
+      <p>中枢是多空博弈区间。扩展与切换是趋势延续与反转的关键节点。</p>
+    </div>
+    <div class="card">
+      <h3>背驰</h3>
+      <p>背驰是力度减弱。创新高/新低但指标走弱，需结合结构位置验证。</p>
+    </div>
+  </section>
+
+  <section class="section" id="fractals">
+    <h3>分型与笔 · 从“点”到“线”</h3>
+    <div class="knowledge">
+      <div class="knowledge-block">
+        <div class="knowledge-title">
+          <h4>分型定义</h4>
+          <span>顶分型 / 底分型</span>
+        </div>
+        <div class="knowledge-desc">
+          顶分型是中间K线高点高于左右两根，底分型则相反。分型确认后才具备“转折”含义。
+          未确认分型不用于画笔，避免出现“伪转折”。
+        </div>
+        <div class="knowledge-grid">
+          <div class="pill">判断标准：三根K线形成局部极值，且中间K线高/低点最极端。</div>
+          <div class="pill">常见误区：未确认分型就提前连接成笔，导致后续结构全错。</div>
+        </div>
+        <div class="diagram">
+          <svg viewBox="0 0 520 160" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="0" width="520" height="160" fill="none"/>
+            <polyline points="20,120 90,80 160,120" fill="none" stroke="#f59e0b" stroke-width="2"/>
+            <circle cx="90" cy="80" r="4" fill="#f59e0b"/>
+            <text x="70" y="60" fill="#f59e0b" font-size="12">顶分型</text>
+            <polyline points="280,60 350,100 420,60" fill="none" stroke="#38bdf8" stroke-width="2"/>
+            <circle cx="350" cy="100" r="4" fill="#38bdf8"/>
+            <text x="330" y="125" fill="#38bdf8" font-size="12">底分型</text>
+          </svg>
+        </div>
+        <div class="case-grid">
+          <div class="case-card"><strong>案例：</strong>顶分型确认后形成向下笔，若价格回撤不破前低，后续更容易出现二买结构。</div>
+        </div>
+      </div>
+
+      <div class="knowledge-block">
+        <div class="knowledge-title">
+          <h4>笔的形成</h4>
+          <span>由相邻顶/底分型连接</span>
+        </div>
+        <div class="knowledge-desc">
+          笔至少连接一个顶分型与一个底分型，且中间存在有效间距。
+          笔的方向决定后续线段方向，常用于定位“趋势惯性”。
+        </div>
+        <div class="knowledge-grid">
+          <div class="pill">笔完成标志：新分型出现并确认，且与前一分型间距有效。</div>
+          <div class="pill">实务建议：笔太短时不参与交易，等待结构更完整的段落。</div>
+        </div>
+        <div class="diagram">
+          <svg viewBox="0 0 520 160" xmlns="http://www.w3.org/2000/svg">
+            <polyline points="20,120 120,60 220,120 320,50 420,120" fill="none" stroke="#58a6ff" stroke-width="2"/>
+            <text x="24" y="140" fill="#8b949e" font-size="12">起点</text>
+            <text x="390" y="140" fill="#8b949e" font-size="12">终点</text>
+          </svg>
+        </div>
+        <div class="case-grid">
+          <div class="case-card"><strong>案例：</strong>在上升趋势中，连线笔持续创新高，回调笔不破前低，趋势延续概率更高。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="segment">
+    <h3>线段 · 次级别趋势的“骨架”</h3>
+    <div class="knowledge">
+      <div class="knowledge-block">
+        <div class="knowledge-title">
+          <h4>线段定义</h4>
+          <span>至少三笔，方向一致</span>
+        </div>
+        <div class="knowledge-desc">
+          线段体现次级别趋势，通常由“上-下-上”或“下-上-下”结构确认。
+          当线段被更大级别的反向笔破坏时，意味着趋势发生结构性变化。
+        </div>
+        <div class="knowledge-grid">
+          <div class="pill">确认：三笔形成特征序列，且主方向笔延续。</div>
+          <div class="pill">破坏：出现反向笔创新低/新高，线段失效。</div>
+        </div>
+        <div class="diagram">
+          <svg viewBox="0 0 520 160" xmlns="http://www.w3.org/2000/svg">
+            <polyline points="20,120 140,80 220,100 340,60 500,80" fill="none" stroke="#a78bfa" stroke-width="3"/>
+            <text x="22" y="140" fill="#8b949e" font-size="12">线段</text>
+          </svg>
+        </div>
+        <div class="case-grid">
+          <div class="case-card"><strong>案例：</strong>线上升线段未被破坏时，回调多视为“二买”机会，止损放在线段起点下方。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="zhongshu">
+    <h3>中枢 · 多空博弈的核心区域</h3>
+    <div class="knowledge">
+      <div class="knowledge-block">
+        <div class="knowledge-title">
+          <h4>中枢定义</h4>
+          <span>连续三笔区间重叠</span>
+        </div>
+        <div class="knowledge-desc">
+          中枢由三笔重叠构成，代表多空均衡。中枢扩展说明资金博弈延长，
+          中枢切换说明趋势在“寻找新平衡”。
+        </div>
+        <div class="knowledge-grid">
+          <div class="pill">中枢上下沿决定关键支撑/压力位。</div>
+          <div class="pill">离开中枢后的第一段是趋势加速段。</div>
+        </div>
+        <div class="diagram">
+          <svg viewBox="0 0 520 160" xmlns="http://www.w3.org/2000/svg">
+            <rect x="140" y="50" width="240" height="60" fill="rgba(56,189,248,0.15)" stroke="#38bdf8" stroke-width="2"/>
+            <polyline points="20,120 180,70 260,100 360,70 500,120" fill="none" stroke="#58a6ff" stroke-width="2"/>
+            <text x="210" y="45" fill="#38bdf8" font-size="12">中枢区间</text>
+          </svg>
+        </div>
+        <div class="case-grid">
+          <div class="case-card"><strong>案例：</strong>价格向上离开中枢后回踩不破上沿，属于三买结构，确认趋势延续。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="beichi">
+    <h3>背驰 · 力度衰竭的信号</h3>
+    <div class="knowledge">
+      <div class="knowledge-block">
+        <div class="knowledge-title">
+          <h4>背驰判定</h4>
+          <span>创新高/新低 + 力度减弱</span>
+        </div>
+        <div class="knowledge-desc">
+          背驰强调“力度变化”，不是单纯指标交叉。常用对比：MACD柱面积、
+          同向笔的能量对比。位置越接近结构末端，背驰的可靠性越高。
+        </div>
+        <div class="knowledge-grid">
+          <div class="pill">顶背驰：价格创新高但能量更弱，防止追高。</div>
+          <div class="pill">底背驰：价格创新低但能量更弱，关注反弹机会。</div>
+        </div>
+        <div class="diagram">
+          <svg viewBox="0 0 520 160" xmlns="http://www.w3.org/2000/svg">
+            <polyline points="20,120 160,60 260,100 360,50 500,90" fill="none" stroke="#f85149" stroke-width="2"/>
+            <rect x="60" y="120" width="40" height="30" fill="#f85149" opacity="0.35"/>
+            <rect x="120" y="120" width="40" height="24" fill="#f85149" opacity="0.35"/>
+            <rect x="340" y="120" width="40" height="16" fill="#f85149" opacity="0.35"/>
+            <rect x="400" y="120" width="40" height="10" fill="#f85149" opacity="0.35"/>
+            <text x="60" y="155" fill="#8b949e" font-size="12">柱面积缩小</text>
+          </svg>
+        </div>
+        <div class="case-grid">
+          <div class="case-card"><strong>案例：</strong>a+A+b+B+c 末端出现顶背驰，建议分批止盈并等待回调结构确认。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="signals">
+    <h3>三类买卖点 · 结构确认与执行策略</h3>
+    <div class="knowledge">
+      <div class="knowledge-block">
+        <div class="knowledge-title">
+          <h4>一买 / 二买 / 三买</h4>
+          <span>确认程度依次提升</span>
+        </div>
+        <div class="knowledge-desc">
+          一买是趋势末端背驰，风险最大；二买是回调不破确认；三买是中枢突破后的回踩确认。
+          交易计划应围绕风控与仓位递进展开。
+        </div>
+        <div class="knowledge-grid">
+          <div class="pill">一买：只试仓，必须设置严格止损。</div>
+          <div class="pill">二买：趋势延续信号，风险与收益更平衡。</div>
+          <div class="pill">三买：确定性最高，但出现频率较低。</div>
+        </div>
+        <div class="diagram">
+          <svg viewBox="0 0 520 160" xmlns="http://www.w3.org/2000/svg">
+            <polyline points="20,120 140,70 220,110 300,60 380,90 460,60" fill="none" stroke="#3fb950" stroke-width="2"/>
+            <circle cx="140" cy="70" r="5" fill="#f59e0b"/>
+            <circle cx="300" cy="60" r="5" fill="#3fb950"/>
+            <circle cx="460" cy="60" r="5" fill="#58a6ff"/>
+            <text x="120" y="55" fill="#f59e0b" font-size="12">一买</text>
+            <text x="280" y="45" fill="#3fb950" font-size="12">二买</text>
+            <text x="440" y="45" fill="#58a6ff" font-size="12">三买</text>
+          </svg>
+        </div>
+        <div class="case-grid">
+          <div class="case-card"><strong>案例：</strong>二买触发后若出现短期放量突破，可考虑增仓并将止损上移至回调低点。</div>
+          <div class="case-card"><strong>案例：</strong>三买回踩不破中枢上沿，适合趋势型持仓策略，目标设定为下一个中枢。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h3>关键知识点速览</h3>
+    <ul>
+      <li><span class="tag">结构</span>笔与线段必须基于分型确认，避免用“未完成的笔”下判断。</li>
+      <li><span class="tag">中枢</span>同级别中枢至少三笔重叠，离开中枢后结构才完整。</li>
+      <li><span class="tag">背驰</span>背驰不是指标金叉死叉，而是“结构创新高/新低 + 力度减弱”。</li>
+      <li><span class="tag">趋势</span>中枢上沿/下沿是重要分界，突破后回踩不破更可靠。</li>
+      <li><span class="tag">风险</span>一买风险最大，二买次之，三买确定性最高但机会少。</li>
+    </ul>
+  </section>
+
+  <section class="section">
+    <h3>实战案例</h3>
+    <ul>
+      <li class="case"><strong>案例 1：趋势延续二买</strong><br>
+        结构：上升线段 + 回调不破起涨点 + 中枢上沿回踩。<br>
+        执行：回调末端出现底背驰或量能缩减时分批进场，止损放在回调低点下方。
+      </li>
+      <li class="case"><strong>案例 2：中枢突破三买</strong><br>
+        结构：中枢区间震荡 → 向上离开 → 回踩不进中枢。<br>
+        执行：回踩确认后介入，目标为下一中枢或前高压力位。
+      </li>
+      <li class="case"><strong>案例 3：顶背驰后的防守</strong><br>
+        结构：a+A+b+B+c 末端，价格创新高但力度减弱。<br>
+        执行：减仓或清仓，等待回调到关键区间再评估二买机会。
+      </li>
+    </ul>
+  </section>
+
+  <section class="section">
+    <h3>常见误区</h3>
+    <ul>
+      <li><span class="tag">误区</span>把 MACD 金叉当背驰。背驰是结构+力度组合。</li>
+      <li><span class="tag">误区</span>忽略级别：低级别背驰不能直接推断高级别反转。</li>
+      <li><span class="tag">误区</span>中枢尚未离开就提前定义趋势。</li>
+    </ul>
+  </section>
+
+  <div class="footer">仅作学习参考，请结合风控与复盘验证。</div>
+</main>
+</body>
+</html>

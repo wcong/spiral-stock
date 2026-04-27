@@ -25,6 +25,11 @@ def index():
     return send_from_directory(STATIC_DIR, 'index.html')
 
 
+@app.route('/chan_guide')
+def chan_guide():
+    return send_from_directory(STATIC_DIR, 'chan_guide.html')
+
+
 @app.route('/api/analyze', methods=['POST'])
 def api_analyze():
     """
@@ -117,6 +122,7 @@ def api_analyze():
             data['diagnostics']['filtered_sell_points'] = len(filtered_sell)
 
         data['forecast'] = _compute_forecast(data)
+        data['price_levels'] = _compute_price_levels(data)
 
         return jsonify({
             'success': True,
@@ -195,6 +201,84 @@ def _compute_forecast(data: dict) -> list[dict]:
         })
 
     return forecasts
+
+
+def _compute_price_levels(data: dict) -> dict:
+    """基于最新结构推测关键上下限与参考买卖价位"""
+    raw = data.get('raw_candles', [])
+    if not raw:
+        return {}
+
+    last = raw[-1]
+    last_dt = last.get('dt')
+    last_price = last.get('close')
+    trend = data.get('trade_bias', {}).get('direction') or data.get('trend', 'side')
+
+    zss = data.get('zhongshus', [])
+    segs = data.get('segments', [])
+    bis = data.get('bis', [])
+
+    last_zs = zss[-1] if zss else None
+    last_seg = segs[-1] if segs else None
+    last_bi = bis[-1] if bis else None
+
+    if last_zs:
+        lower_key = last_zs.get('zd')
+        upper_key = last_zs.get('zg')
+        lower_reason = '中枢下沿'
+        upper_reason = '中枢上沿'
+    elif last_seg:
+        lower_key = min(last_seg.get('start_price'), last_seg.get('end_price'))
+        upper_key = max(last_seg.get('start_price'), last_seg.get('end_price'))
+        lower_reason = '最新线段低点'
+        upper_reason = '最新线段高点'
+    elif last_bi:
+        lower_key = min(last_bi.get('start_price'), last_bi.get('end_price'))
+        upper_key = max(last_bi.get('start_price'), last_bi.get('end_price'))
+        lower_reason = '最新一笔低点'
+        upper_reason = '最新一笔高点'
+    else:
+        lower_key = last_price
+        upper_key = last_price
+        lower_reason = '最新收盘'
+        upper_reason = '最新收盘'
+
+    buy_price = lower_key
+    sell_price = upper_key
+    buy_reason = lower_reason
+    sell_reason = upper_reason
+
+    if trend == 'up':
+        if last_zs and last_price is not None:
+            buy_price = last_zs.get('zg') if last_price >= last_zs.get('zg') else last_zs.get('zd')
+            buy_reason = '上行趋势回踩中枢'
+        if last_seg:
+            sell_price = max(upper_key, last_seg.get('end_price'))
+            sell_reason = '上行趋势前高/线段终点'
+    elif trend == 'down':
+        if last_zs and last_price is not None:
+            sell_price = last_zs.get('zd') if last_price <= last_zs.get('zd') else last_zs.get('zg')
+            sell_reason = '下行趋势反弹到中枢'
+        if last_seg:
+            buy_price = min(lower_key, last_seg.get('end_price'))
+            buy_reason = '下行趋势末端支撑'
+    else:
+        if last_zs:
+            buy_price = last_zs.get('zd')
+            sell_price = last_zs.get('zg')
+            buy_reason = '震荡下沿'
+            sell_reason = '震荡上沿'
+
+    return {
+        'as_of': last_dt,
+        'trend': trend,
+        'key_levels': [
+            {'role': 'lower', 'price': lower_key, 'reason': lower_reason},
+            {'role': 'upper', 'price': upper_key, 'reason': upper_reason},
+            {'role': 'buy', 'price': buy_price, 'reason': buy_reason},
+            {'role': 'sell', 'price': sell_price, 'reason': sell_reason},
+        ],
+    }
 
 
 @app.route('/api/sample', methods=['GET'])
