@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中国股票代码</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap');
+
+:root {
+  --bg: #f7f1e7;
+  --panel: #fffaf2;
+  --panel-2: #fff3de;
+  --ink: #1b1b1b;
+  --muted: #6f6a60;
+  --accent: #0c6b5c;
+  --accent-2: #d46b2c;
+  --border: #e5d6bf;
+  --shadow: 0 24px 60px rgba(27, 27, 27, 0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "Space Grotesk", "Noto Sans SC", sans-serif;
+  color: var(--ink);
+  background: radial-gradient(circle at top left, rgba(12,107,92,0.08), transparent 55%),
+              radial-gradient(circle at top right, rgba(212,107,44,0.12), transparent 55%),
+              var(--bg);
+  min-height: 100vh;
+}
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(247, 241, 231, 0.9);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+}
+.brand h1 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.brand span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.nav {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+.nav a {
+  text-decoration: none;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+.nav a:hover { color: var(--accent); border-color: var(--accent); }
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+  display: grid;
+  gap: 18px;
+}
+
+.hero {
+  background: linear-gradient(120deg, rgba(12,107,92,0.12), rgba(212,107,44,0.12));
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 12px;
+  animation: rise 0.5s ease both;
+}
+.hero h2 { font-size: 22px; }
+.hero p { color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.btn {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 600;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 20px rgba(12,107,92,0.2); }
+.btn-secondary {
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+.search {
+  flex: 1;
+  min-width: 220px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-size: 12px;
+}
+
+.status {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+  animation: rise 0.6s ease both;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.panel-header h3 {
+  font-size: 15px;
+}
+.panel-header span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.list {
+  display: grid;
+  gap: 10px;
+  overflow: auto;
+  padding-right: 4px;
+  max-height: 520px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+  background: #fff;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.card:hover { transform: translateY(-2px); border-color: var(--accent); }
+
+.card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+.card-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tag {
+  font-size: 10px;
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--muted);
+}
+
+.meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+.meta strong { color: var(--ink); font-weight: 600; }
+
+.pin-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+.pin-btn.pinned { background: var(--accent); color: #fff; border-color: var(--accent); }
+.pin-btn.remove { background: #fff; color: var(--accent-2); border-color: var(--accent-2); }
+
+.empty {
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.loading {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(247, 241, 231, 0.85);
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+.loading.active { display: flex; }
+.loading span {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 12px;
+  box-shadow: var(--shadow);
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 840px) {
+  .header-inner { flex-direction: column; align-items: flex-start; }
+  .nav { margin-left: 0; flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <h1>China Stock Codes</h1>
+      <span>Eastmoney A-share list · market cap sorted</span>
+    </div>
+    <nav class="nav">
+      <a href="/">返回分析页</a>
+      <a href="/chan_guide">缠论指南</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container">
+  <section class="hero">
+    <h2>本地缓存 + 置顶清单</h2>
+    <p>点击“刷新”从东方财富抓取A股股票代码与市值，并保存到本地。置顶列表会写入本地文件，方便下次打开直接使用。</p>
+    <div class="toolbar">
+      <button class="btn btn-primary" id="refreshBtn">刷新并保存</button>
+      <button class="btn btn-secondary" id="reloadBtn">加载本地</button>
+      <input class="search" id="searchInput" placeholder="搜索代码或公司名…" />
+      <div class="status" id="statusText">等待加载</div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="panel">
+      <div class="panel-header">
+        <h3>置顶股票</h3>
+        <span id="pinnedCount">0</span>
+      </div>
+      <div class="list" id="pinnedList"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <h3>完整列表（市值从高到低）</h3>
+        <span id="fullCount">0</span>
+      </div>
+      <div class="list" id="fullList"></div>
+    </div>
+  </section>
+</div>
+
+<div class="loading" id="loading"><span>正在同步东方财富数据…</span></div>
+
+<script>
+let stockItems = [];
+let pinnedCodes = new Set();
+let lastUpdated = null;
+
+const statusText = document.getElementById('statusText');
+const pinnedList = document.getElementById('pinnedList');
+const fullList = document.getElementById('fullList');
+const pinnedCount = document.getElementById('pinnedCount');
+const fullCount = document.getElementById('fullCount');
+const searchInput = document.getElementById('searchInput');
+const loading = document.getElementById('loading');
+
+function setStatus(text) {
+  statusText.textContent = text;
+}
+
+function formatCap(value) {
+  const num = Number(value);
+  if (!num) return '-';
+  const b = num / 1e9;
+  return `¥ ${b.toFixed(2)}B`;
+}
+
+function formatPct(value) {
+  const num = Number(value);
+  if (!num) return '0.00%';
+  const sign = num > 0 ? '+' : '';
+  return `${sign}${num.toFixed(2)}%`;
+}
+
+function formatPrice(value) {
+  const num = Number(value);
+  if (!num) return '-';
+  return num.toFixed(2);
+}
+
+function getItemMap() {
+  const map = new Map();
+  stockItems.forEach(item => map.set(item.code, item));
+  return map;
+}
+
+function renderPinned() {
+  const map = getItemMap();
+  const codes = Array.from(pinnedCodes);
+  pinnedCount.textContent = codes.length;
+  if (codes.length === 0) {
+    pinnedList.innerHTML = '<div class="empty">还没有置顶，去右侧点“Pin”吧。</div>';
+    return;
+  }
+  pinnedList.innerHTML = codes.map(code => {
+    const item = map.get(code) || { code, name: '未在列表中', market_cap: 0, price: 0, pct: 0 };
+    return `
+      <div class="card">
+        <div class="card-top">
+          <div>
+            <div class="card-title">${item.name || '未命名'} <span class="tag">${item.code}</span></div>
+            <div class="card-sub">市值 ${formatCap(item.market_cap)}</div>
+          </div>
+          <button class="pin-btn remove" onclick="unpin('${item.code}')">Unpin</button>
+        </div>
+        <div class="meta">
+          <span>现价 <strong>${formatPrice(item.price)}</strong></span>
+          <span>涨跌 <strong>${formatPct(item.pct)}</strong></span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderFull() {
+  const keyword = searchInput.value.trim().toLowerCase();
+  const list = keyword
+    ? stockItems.filter(item =>
+        String(item.code).includes(keyword) ||
+        String(item.name || '').toLowerCase().includes(keyword)
+      )
+    : stockItems;
+
+  fullCount.textContent = list.length;
+
+  if (list.length === 0) {
+    fullList.innerHTML = '<div class="empty">暂无匹配结果。</div>';
+    return;
+  }
+
+  fullList.innerHTML = list.map(item => {
+    const isPinned = pinnedCodes.has(item.code);
+    return `
+      <div class="card">
+        <div class="card-top">
+          <div>
+            <div class="card-title">${item.name} <span class="tag">${item.code}</span></div>
+            <div class="card-sub">市值 ${formatCap(item.market_cap)}</div>
+          </div>
+          <button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="togglePin('${item.code}')">
+            ${isPinned ? 'Pinned' : 'Pin'}
+          </button>
+        </div>
+        <div class="meta">
+          <span>现价 <strong>${formatPrice(item.price)}</strong></span>
+          <span>涨跌 <strong>${formatPct(item.pct)}</strong></span>
+          <span>流通市值 <strong>${formatCap(item.float_market_cap)}</strong></span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderAll() {
+  renderPinned();
+  renderFull();
+}
+
+function togglePin(code) {
+  if (pinnedCodes.has(code)) {
+    pinnedCodes.delete(code);
+  } else {
+    pinnedCodes.add(code);
+  }
+  savePins();
+  renderAll();
+}
+
+function unpin(code) {
+  pinnedCodes.delete(code);
+  savePins();
+  renderAll();
+}
+
+async function loadLocalList() {
+  const resp = await fetch('/api/stock_list');
+  const json = await resp.json();
+  if (!json.success) throw new Error(json.error || '加载失败');
+  stockItems = json.items || [];
+  lastUpdated = json.updated_at;
+  setStatus(lastUpdated ? `本地缓存更新时间：${lastUpdated}` : '本地暂无缓存，点击刷新获取');
+}
+
+async function loadPins() {
+  const resp = await fetch('/api/stock_pins');
+  const json = await resp.json();
+  if (!json.success) throw new Error(json.error || '加载失败');
+  pinnedCodes = new Set(json.codes || []);
+}
+
+async function savePins() {
+  await fetch('/api/stock_pins', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codes: Array.from(pinnedCodes) }),
+  });
+}
+
+async function refreshRemote() {
+  loading.classList.add('active');
+  try {
+    const resp = await fetch('/api/stock_list_refresh', { method: 'POST' });
+    const json = await resp.json();
+    if (!json.success) throw new Error(json.error || '抓取失败');
+    await loadLocalList();
+    renderAll();
+  } catch (e) {
+    setStatus(`刷新失败：${e.message}`);
+  } finally {
+    loading.classList.remove('active');
+  }
+}
+
+async function initPage() {
+  try {
+    await Promise.all([loadLocalList(), loadPins()]);
+    renderAll();
+  } catch (e) {
+    setStatus(`加载失败：${e.message}`);
+  }
+}
+
+searchInput.addEventListener('input', () => renderFull());
+
+document.getElementById('refreshBtn').addEventListener('click', refreshRemote);
+
+document.getElementById('reloadBtn').addEventListener('click', async () => {
+  try {
+    await loadLocalList();
+    renderAll();
+  } catch (e) {
+    setStatus(`加载失败：${e.message}`);
+  }
+});
+
+initPage();
+</script>
+</body>
+</html>

@@ -18,6 +18,8 @@ CORS(app)
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), 'static')
 STOCK_DATA_DIR = os.path.join(os.path.dirname(__file__), 'stock_data')
+STOCK_LIST_FILE = os.path.join(STOCK_DATA_DIR, 'stock_list.json')
+STOCK_PINS_FILE = os.path.join(STOCK_DATA_DIR, 'stock_pins.json')
 
 
 @app.route('/')
@@ -28,6 +30,11 @@ def index():
 @app.route('/chan_guide')
 def chan_guide():
     return send_from_directory(STATIC_DIR, 'chan_guide.html')
+
+
+@app.route('/stock_list')
+def stock_list_page():
+    return send_from_directory(STATIC_DIR, 'stock_list.html')
 
 
 @app.route('/api/analyze', methods=['POST'])
@@ -346,6 +353,82 @@ def api_stock_data():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/stock_list', methods=['GET'])
+def api_stock_list():
+    """返回本地保存的股票列表"""
+    try:
+        if not os.path.isfile(STOCK_LIST_FILE):
+            return jsonify({'success': True, 'items': [], 'count': 0, 'updated_at': None})
+        with open(STOCK_LIST_FILE, 'r', encoding='utf-8') as f:
+            payload = json.load(f)
+        items = payload.get('items', []) if isinstance(payload, dict) else []
+        return jsonify({
+            'success': True,
+            'items': items,
+            'count': len(items),
+            'updated_at': payload.get('updated_at') if isinstance(payload, dict) else None,
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/stock_list_refresh', methods=['POST'])
+def api_stock_list_refresh():
+    """从东方财富抓取A股列表并保存到本地"""
+    try:
+        os.makedirs(STOCK_DATA_DIR, exist_ok=True)
+        items = _fetch_eastmoney_stock_list()
+        payload = {
+            'updated_at': datetime.now().isoformat(timespec='seconds'),
+            'source': 'eastmoney',
+            'count': len(items),
+            'items': items,
+        }
+        with open(STOCK_LIST_FILE, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, ensure_ascii=False)
+        return jsonify({'success': True, 'count': len(items), 'updated_at': payload['updated_at']})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/stock_pins', methods=['GET', 'POST'])
+def api_stock_pins():
+    """读取或保存本地置顶股票"""
+    try:
+        if request.method == 'GET':
+            if not os.path.isfile(STOCK_PINS_FILE):
+                return jsonify({'success': True, 'codes': []})
+            with open(STOCK_PINS_FILE, 'r', encoding='utf-8') as f:
+                payload = json.load(f)
+            codes = payload.get('codes', []) if isinstance(payload, dict) else []
+            return jsonify({'success': True, 'codes': codes})
+
+        body = request.get_json(force=True) or {}
+        codes = body.get('codes', [])
+        if not isinstance(codes, list):
+            return jsonify({'error': 'codes 必须为数组'}), 400
+        clean = []
+        seen = set()
+        for c in codes:
+            val = str(c).strip()
+            if not val or val in seen:
+                continue
+            seen.add(val)
+            clean.append(val)
+        payload = {
+            'updated_at': datetime.now().isoformat(timespec='seconds'),
+            'codes': clean,
+        }
+        os.makedirs(STOCK_DATA_DIR, exist_ok=True)
+        with open(STOCK_PINS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, ensure_ascii=False)
+        return jsonify({'success': True, 'codes': clean})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/stock_file', methods=['DELETE'])
 def api_stock_file():
     """删除本地 stock_data 文件"""
@@ -487,6 +570,58 @@ def _klt_label(klt: str) -> str:
         '102': '1w',
     }
     return mapping.get(klt, '1d')
+
+
+def _fetch_eastmoney_stock_list() -> list[dict]:
+    """抓取东方财富A股列表"""
+    base_url = 'https://push2.eastmoney.com/api/qt/clist/get'
+    page_size = 200
+    page = 1
+    total = None
+    items: list[dict] = []
+    while True:
+        params = {
+            'pn': page,
+            'pz': page_size,
+            'po': 1,
+            'np': 1,
+            'fltt': 2,
+            'invt': 2,
+            'fid': 'f20',
+            'fs': 'm:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23',
+            'fields': 'f12,f14,f20,f21,f2,f3,f4',
+        }
+        url = f"{base_url}?{urlencode(params)}"
+        req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urlopen(req, timeout=12) as resp:
+            payload = json.loads(resp.read().decode('utf-8'))
+        data = payload.get('data') or {}
+        if total is None:
+            total = int(data.get('total') or 0)
+        diff = data.get('diff') or []
+        if not diff:
+            break
+        for row in diff:
+            code = str(row.get('f12') or '').strip()
+            if not code:
+                continue
+            items.append({
+                'code': code,
+                'name': row.get('f14') or '',
+                'market_cap': row.get('f20') or 0,
+                'float_market_cap': row.get('f21') or 0,
+                'price': row.get('f2') or 0,
+                'pct': row.get('f3') or 0,
+                'change': row.get('f4') or 0,
+            })
+        if total and len(items) >= total:
+            break
+        page += 1
+        if page > 200:
+            break
+
+    items.sort(key=lambda x: x.get('market_cap') or 0, reverse=True)
+    return items
 
 
 if __name__ == '__main__':
